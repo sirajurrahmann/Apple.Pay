@@ -132,7 +132,7 @@
                 merchantCapabilities: ["supports3DS"],
                 total: {
                     label: "Static Debug Store",
-                    amount: "19.99"
+                    amount: "0.10"
                 }
             };
 
@@ -148,10 +148,8 @@
                 log("Merchant validation started", {
                     validationURL: event.validationURL
                 });
-
-                const response = await fetch(
-                    "https://api.yourdomain.com/applepay/validate-merchant",
-                    {
+                const apiUrl = server + "/applepay/validate-merchant";
+                const response = await fetch(apiUrl, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
@@ -184,10 +182,8 @@
 
                 log("Apple Pay payment token is available (see below)");
 
-                // Send to backend
-                const response = await fetch(
-                    "https://api.yourdomain.com/applepay/process-payment",
-                    {
+                const apiUrl = server + "/applepay/process-payment";
+                const response = await fetch(apiUrl, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: prettyJson
