@@ -1,0 +1,200 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Apple Pay - ApplePay.Web</title>
+    <script type="importmap">{
+  "imports": {
+    "./js/site.js": "./js/site.9jhl1qsv6g.js",
+    "./lib/bootstrap/dist/js/bootstrap.bundle.js": "./lib/bootstrap/dist/js/bootstrap.bundle.4094rpi4f9.js",
+    "./lib/bootstrap/dist/js/bootstrap.bundle.min.js": "./lib/bootstrap/dist/js/bootstrap.bundle.min.hd3gran6i8.js",
+    "./lib/bootstrap/dist/js/bootstrap.esm.js": "./lib/bootstrap/dist/js/bootstrap.esm.ltid2c489k.js",
+    "./lib/bootstrap/dist/js/bootstrap.esm.min.js": "./lib/bootstrap/dist/js/bootstrap.esm.min.8vyfqsqgz1.js",
+    "./lib/bootstrap/dist/js/bootstrap.min.js": "./lib/bootstrap/dist/js/bootstrap.min.4d85u1mtcx.js",
+    "./lib/bootstrap/dist/js/bootstrap.js": "./lib/bootstrap/dist/js/bootstrap.u9q1upor1n.js",
+    "./lib/jquery-validation-unobtrusive/dist/jquery.validate.unobtrusive.js": "./lib/jquery-validation-unobtrusive/dist/jquery.validate.unobtrusive.03hjc8e09r.js",
+    "./lib/jquery-validation-unobtrusive/dist/jquery.validate.unobtrusive.min.js": "./lib/jquery-validation-unobtrusive/dist/jquery.validate.unobtrusive.min.48y08845bh.js",
+    "./lib/jquery-validation/dist/additional-methods.js": "./lib/jquery-validation/dist/additional-methods.83jwlth58m.js",
+    "./lib/jquery-validation/dist/additional-methods.min.js": "./lib/jquery-validation/dist/additional-methods.min.mrlpezrjn3.js",
+    "./lib/jquery-validation/dist/jquery.validate.min.js": "./lib/jquery-validation/dist/jquery.validate.min.gk0pw8i4co.js",
+    "./lib/jquery-validation/dist/jquery.validate.js": "./lib/jquery-validation/dist/jquery.validate.worgj0nhwm.js",
+    "./lib/jquery/dist/jquery.js": "./lib/jquery/dist/jquery.d6nrnj6jjx.js",
+    "./lib/jquery/dist/jquery.min.js": "./lib/jquery/dist/jquery.min.m9qm4tazc0.js",
+    "./lib/jquery/dist/jquery.slim.js": "./lib/jquery/dist/jquery.slim.jjsuc0puko.js",
+    "./lib/jquery/dist/jquery.slim.min.js": "./lib/jquery/dist/jquery.slim.min.9vr69e8ynj.js"
+  }
+}</script>
+    <link rel="stylesheet" href="/lib/bootstrap/dist/css/bootstrap.min.43atpzeawx.css" />
+    <link rel="stylesheet" href="/css/site.b9sayid5wm.css" />
+    <link rel="stylesheet" href="/ApplePay.Web.8el43fr2jp.styles.css" />
+    <script src="/js/site.9jhl1qsv6g.js"></script>
+    <script crossorigin src="https://applepay.cdn-apple.com/jsapi/v1/apple-pay-sdk.js"></script>
+</head>
+<body>
+<header b-k4z3b2wqzi>
+
+</header>
+<div b-k4z3b2wqzi class="container">
+    <main b-k4z3b2wqzi role="main" class="pb-3">
+        
+<input type="text" onchange="log(this.value)"/>
+<div id="res">
+
+</div>
+<style>
+  apple-pay-button {
+    --apple-pay-button-width: 300px;
+    --apple-pay-button-height: 46px;
+    --apple-pay-button-border-radius: 27px;
+    --apple-pay-button-padding: 0px 0px;
+    --apple-pay-button-box-sizing: border-box;
+  }
+</style>
+<apple-pay-button buttonstyle="white-outline" type="pay" locale="en-US"></apple-pay-button>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const el = document.getElementById('res');
+
+    function log(msg) {
+      if (!el) return;
+      const s = typeof msg === 'string' ? msg : JSON.stringify(msg);
+      el.innerText = (el.innerText || '') + s + '\n';
+    }
+
+    const btn = document.querySelector('apple-pay-button');
+    if (!btn) return;
+    btn.addEventListener('click', function() {
+      if (!window.ApplePaySession) {
+        log('Apple Pay not available');
+        return;
+      }
+      if (!ApplePaySession.canMakePayments()) {
+        log('Device cannot make payments');
+        return;
+      }
+      if (ApplePaySession.applePayCapabilities) {
+        try {
+          ApplePaySession.applePayCapabilities('merchant.cloud.n3o.testapp').then(function(capabilities) {
+            log(capabilities)
+            switch (capabilities.paymentCredentialStatus) {
+              case "paymentCredentialsAvailable":
+              case "paymentCredentialStatusUnknown":
+              case "paymentCredentialsUnavailable":
+              case "applePayUnsupported":
+            }
+          })
+        } catch (e) {
+          log(e)
+          startSession();
+        }
+      } else {
+        startSession();
+      }
+
+      function startSession() {
+        const amount = 0.10;
+
+        const request = {
+          countryCode: 'US',
+          currencyCode: 'USD',
+          merchantCapabilities: ['supports3DS'],
+          supportedNetworks: ['visa', 'masterCard', 'amex', 'discover'],
+          total: {label: 'Demo Store', amount: amount.toFixed(2)}
+        };
+        const session = new ApplePaySession(6, request);
+
+        session.onvalidatemerchant = async function(event) {
+          try {
+            log('Validating merchant');
+            const res = await fetch('/applepay/validate-merchant', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({validationURL: event.validationURL})
+            });
+            if (!res.ok) {
+              log('Merchant validation failed ' + res.status);
+              session.abort();
+              return;
+            }
+            const merchantSession = await res.json();
+            log('Merchant validated');
+            log(merchantSession);
+            session.completeMerchantValidation(merchantSession);
+            log('Merchant validated');
+          } catch (e) {
+            log(e && e.message ? e.message : 'Merchant validation error');
+            session.abort();
+          }
+        };
+
+        session.onpaymentauthorized = async (event) =>  {
+          try {
+            const res = await fetch('/applepay/pay', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ token: event.payment.token, amount }),
+            })
+            if (res.ok) {
+              session.completePayment(window.ApplePaySession.STATUS_SUCCESS)
+              log('Payment successful')
+            } else {
+              session.completePayment(window.ApplePaySession.STATUS_FAILURE)
+              const text = await res.text()
+              log(text || 'Payment failed')
+            }
+          } catch (e) {
+            session.completePayment(window.ApplePaySession.STATUS_FAILURE)
+            log(e?.message || 'Payment error')
+          }
+        }
+        
+        session.onpaymentmethodselected = event => {
+          const update = {};
+          session.completePaymentMethodSelection(update);
+        }
+        session.onpaymentmethodchange = event => {
+          const update = {};
+          session.completePaymentMethodSelection(update);
+        }
+
+        session.onshippingmethodselected = event => {
+          const update = {};
+          session.completePaymentMethodSelection(update);
+        }        
+        session.onshippingcontactselected = event => {
+          const update = {};
+          session.completePaymentMethodSelection(update);
+        }        
+        
+        session.oncouponcodechanged = event => {
+          const update = {};
+          session.completePaymentMethodSelection(update);
+        }
+        session.onshippingaddresschange = event => {
+          const update = {};
+          session.completePaymentMethodSelection(update);
+        }
+        
+        session.oncancel = function(e) {
+          log(e);
+          log('Payment cancelled');
+        };
+        session.begin();
+        log('Session started');
+      }
+    });
+  })
+
+</script>
+
+    </main>
+</div>
+
+<script src="/lib/jquery/dist/jquery.min.m9qm4tazc0.js"></script>
+<script src="/lib/bootstrap/dist/js/bootstrap.bundle.min.hd3gran6i8.js"></script>
+
+
+</body>
+</html>
