@@ -58,14 +58,7 @@
         <button onclick="copyJson()">Copy JSON</button>
     </div>
 
-    <script>
-
-        const params = new URLSearchParams(window.location.search);
-        const serverUrl = params.get("serverUrl");
-
-        var server = serverUrl ?? document.getElementById("hostServer").value;
-        console.log(server);
-        
+    <script>       
         /* -----------------------------
            Logging Helpers
         ------------------------------*/
@@ -148,6 +141,11 @@
                 log("Merchant validation started", {
                     validationURL: event.validationURL
                 });
+                const params = new URLSearchParams(window.location.search);
+                const serverUrl = params.get("serverUrl");
+                
+                var server = serverUrl ?? document.getElementById("hostServer").value;
+                console.log(server);
                 const apiUrl = server + "/applepay/validate-merchant";
                 const response = await fetch(apiUrl, {
                         method: "POST",
@@ -181,6 +179,11 @@
                 document.getElementById("tokenContainer").style.display = "block";
 
                 log("Apple Pay payment token is available (see below)");
+                const params = new URLSearchParams(window.location.search);
+                const serverUrl = params.get("serverUrl");
+                
+                var server = serverUrl ?? document.getElementById("hostServer").value;
+                console.log(server);
 
                 const apiUrl = server + "/applepay/process-payment";
                 const response = await fetch(apiUrl, {
