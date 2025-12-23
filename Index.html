@@ -173,9 +173,10 @@
 
                 // FULL Apple Pay payment object
                 log("Apple Pay payment object generated", event.payment);
+                log("Apple Pay event object generated", event);
 
                 // Show JSON for copying
-                const prettyJson = JSON.stringify(event.payment, null, 2);
+                const prettyJson = JSON.stringify(event.payment);
                 document.getElementById("paymentJson").value = prettyJson;
                 document.getElementById("tokenContainer").style.display = "block";
 
