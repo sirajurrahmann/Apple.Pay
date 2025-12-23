@@ -198,10 +198,15 @@
                 if (response.ok) {
                     log("Payment successfully sent to backend");
                     session.completePayment(ApplePaySession.STATUS_SUCCESS);
+
+                    const json = await response.json();
+                    log("Merchant backend response received", json);
                 } else {
                     log("Payment failed on backend");
                     session.completePayment(ApplePaySession.STATUS_FAILURE);
                 }
+
+                
             };
 
             session.oncancel = () => {
