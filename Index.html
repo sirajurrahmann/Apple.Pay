@@ -58,7 +58,7 @@
         <button onclick="copyJson()">Copy JSON</button>
     </div>
 
-    <script>       
+    <script>
         /* -----------------------------
            Logging Helpers
         ------------------------------*/
@@ -124,6 +124,7 @@
                 currencyCode: "USD",
                 supportedNetworks: ["visa", "masterCard", "amex"],
                 merchantCapabilities: ["supports3DS"],
+                requiredBillingContactFields: ['postalAddress', 'name', 'email', 'phone'],
                 total: {
                     label: "Static Debug Store",
                     amount: "0.10"
@@ -144,17 +145,17 @@
                 });
                 const params = new URLSearchParams(window.location.search);
                 const serverUrl = params.get("serverUrl");
-                
+
                 var server = serverUrl ?? document.getElementById("hostServer").value;
                 console.log(server);
                 const apiUrl = server + "/applepay/validate-merchant";
                 const response = await fetch(apiUrl, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            validationUrl: event.validationURL
-                        })
-                    }
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        validationUrl: event.validationURL
+                    })
+                }
                 );
 
                 const merchantSession = await response.json();
@@ -174,6 +175,13 @@
                 // FULL Apple Pay payment object
                 log("Apple Pay payment object generated", event.payment);
                 log("Apple Pay event object generated", event);
+                const billingContact = event.payment.billingContact;
+
+                if (billingContact) {
+                    log('Billing Address: ', billingContact);
+                } else {
+                    log('No billing contact returned');
+                }
 
                 // Show JSON for copying
                 const prettyJson = JSON.stringify(event.payment);
@@ -183,16 +191,16 @@
                 log("Apple Pay payment token is available (see below)");
                 const params = new URLSearchParams(window.location.search);
                 const serverUrl = params.get("serverUrl");
-                
+
                 var server = serverUrl ?? document.getElementById("hostServer").value;
                 console.log(server);
 
                 const apiUrl = server + "/applepay/process-payment";
                 const response = await fetch(apiUrl, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: prettyJson
-                    }
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: prettyJson
+                }
                 );
 
                 if (response.ok) {
@@ -206,7 +214,7 @@
                     session.completePayment(ApplePaySession.STATUS_FAILURE);
                 }
 
-                
+
             };
 
             session.oncancel = () => {
