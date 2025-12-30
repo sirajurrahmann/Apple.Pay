@@ -10,6 +10,13 @@
             padding: 20px;
         }
 
+        input {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+
         #applePayBtn {
             display: none;
             padding: 12px 20px;
@@ -45,6 +52,10 @@
 
     <h2>Apple Pay – Static Page (Debug Enabled)</h2>
     <input id="hostServer" type="url" />
+    <input id="apiPrefix" type="text" placeholder="/applepay/v1.0" />
+    <input id="methodId" type="text" placeholder="Method ID" />
+    <input id="subscriptionId" type="text" placeholder="N3O-Subscription-Id" />
+    <input id="bearerToken" type="text" placeholder="Authorization (Bearer ...)" />
 
     <button id="applePayBtn">Buy with Apple Pay</button>
 
@@ -78,6 +89,33 @@
             logBox.scrollTop = logBox.scrollHeight;
         }
 
+        function normalizeBaseUrl(value) {
+            return (value || '').trim().replace(/\/+$/g, '');
+        }
+
+        function normalizePrefix(value) {
+            const v = (value || '').trim();
+            if (!v) return '';
+            if (v === '/') return '';
+            return `/${v.replace(/^\/+/, '').replace(/\/+$/, '')}`;
+        }
+
+        function buildHeaders() {
+            const headers = { "Content-Type": "application/json" };
+
+            const subscriptionId = (document.getElementById('subscriptionId').value || '').trim();
+            if (subscriptionId) {
+                headers["N3O-Subscription-Id"] = subscriptionId;
+            }
+
+            const bearerToken = (document.getElementById('bearerToken').value || '').trim();
+            if (bearerToken) {
+                headers["Authorization"] = bearerToken;
+            }
+
+            return headers;
+        }
+
         /* -----------------------------
            Copy JSON
         ------------------------------*/
@@ -94,6 +132,18 @@
         document.addEventListener("DOMContentLoaded", () => {
 
             log("Page loaded");
+
+            const hostServer = document.getElementById('hostServer');
+            if (!hostServer.value) hostServer.value = 'https://01aba5987ddc.ngrok-free.app';
+
+            const apiPrefix = document.getElementById('apiPrefix');
+            if (!apiPrefix.value) apiPrefix.value = '/applepay/v1.0';
+
+            const methodId = document.getElementById('methodId');
+            if (!methodId.value) methodId.value = 'a09cb06c-4fc0-4384-b14c-450e3abfc1c9';
+
+            const subscriptionId = document.getElementById('subscriptionId');
+            if (!subscriptionId.value) subscriptionId.value = '00000006-0000-0000-0000-000000000000';
 
             if (!window.ApplePaySession) {
                 log("ApplePaySession not available");
@@ -119,7 +169,7 @@
             log("Apple Pay button clicked");
 
             const paymentRequest = {
-                merchantId: "merchant.cloud.n3o.testapp",
+                merchantId: "merchant.fr.muslimhands",
                 countryCode: "US",
                 currencyCode: "USD",
                 supportedNetworks: ["visa", "masterCard", "amex"],
@@ -146,17 +196,33 @@
                 const params = new URLSearchParams(window.location.search);
                 const serverUrl = params.get("serverUrl");
 
-                var server = serverUrl ?? document.getElementById("hostServer").value;
-                console.log(server);
-                const apiUrl = server + "/applepay/validate-merchant";
+                const server = serverUrl ?? document.getElementById("hostServer").value;
+                const apiPrefix = document.getElementById('apiPrefix').value;
+                const methodId = document.getElementById('methodId').value;
+
+                const apiUrl = `${normalizeBaseUrl(server)}${normalizePrefix(apiPrefix)}/${methodId}/validatemerchant`;
+                const data = {
+    parameters: {
+        flowRevision: 1,
+        billingInfo: {},
+        flowId: "aba3460d-cdab-45ad-8090-3bfee160d30c",
+        scopeId: "",
+        namedParameters: {
+            
+        }
+    },
+    request: {
+        url: event.validationURL,
+        initiativeContext: "muslimhands.fr",
+        initiative: "web"
+    }
+};
+
                 const response = await fetch(apiUrl, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        validationUrl: event.validationURL
-                    })
-                }
-                );
+                    headers: buildHeaders(),
+                    body: JSON.stringify(data)
+                });
 
                 const merchantSession = await response.json();
 
@@ -198,7 +264,7 @@
                 const apiUrl = server + "/applepay/process-payment";
                 const response = await fetch(apiUrl, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: buildHeaders(),
                     body: prettyJson
                 }
                 );

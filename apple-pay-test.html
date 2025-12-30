@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Apple Pay Static Debug Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+
+        #applePayBtn {
+            display: none;
+            padding: 12px 20px;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        #log {
+            border: 1px solid #ccc;
+            padding: 10px;
+            height: 250px;
+            overflow-y: auto;
+            background: #f9f9f9;
+            white-space: pre-wrap;
+            font-size: 13px;
+        }
+
+        #tokenContainer {
+            display: none;
+            margin-top: 20px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 220px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>Apple Pay – Static Page (Debug Enabled)</h2>
+    <input id="hostServer" type="url" />
+    <input id="apiPrefix" type="text" placeholder="/applepay/v1.0" />
+    <input id="methodId" type="text" placeholder="Method ID" />
+    <input id="subscriptionId" type="text" placeholder="N3O-Subscription-Id" />
+    <input id="bearerToken" type="text" placeholder="Authorization (Bearer ...)" />
+
+    <button id="applePayBtn">Buy with Apple Pay</button>
+
+    <h3>Log Output</h3>
+    <div id="log"></div>
+
+    <div id="tokenContainer">
+        <h3>Apple Pay Payment JSON</h3>
+        <textarea id="paymentJson" readonly></textarea>
+        <br />
+        <button onclick="copyJson()">Copy JSON</button>
+    </div>
+
+    <script>
+        /* -----------------------------
+           Logging Helpers
+        ------------------------------*/
+        function log(message, data) {
+            const logBox = document.getElementById("log");
+            const timestamp = new Date().toISOString();
+            let text = `[${timestamp}] ${message}`;
+
+            if (data) {
+                console.log(message, data);
+                text += "\n" + JSON.stringify(data, null, 2);
+            } else {
+                console.log(message);
+            }
+
+            logBox.textContent += text + "\n\n";
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        function normalizeBaseUrl(value) {
+            return (value || '').trim().replace(/\/+$/g, '');
+        }
+
+        function normalizePrefix(value) {
+            const v = (value || '').trim();
+            if (!v) return '';
+            if (v === '/') return '';
+            return `/${v.replace(/^\/+/, '').replace(/\/+$/, '')}`;
+        }
+
+        function buildHeaders() {
+            const headers = { "Content-Type": "application/json" };
+
+            const subscriptionId = (document.getElementById('subscriptionId').value || '').trim();
+            if (subscriptionId) {
+                headers["N3O-Subscription-Id"] = subscriptionId;
+            }
+
+            const bearerToken = (document.getElementById('bearerToken').value || '').trim();
+            if (bearerToken) {
+                headers["Authorization"] = bearerToken;
+            }
+
+            return headers;
+        }
+
+        /* -----------------------------
+           Copy JSON
+        ------------------------------*/
+        function copyJson() {
+            const textarea = document.getElementById("paymentJson");
+            textarea.select();
+            document.execCommand("copy");
+            alert("Apple Pay JSON copied to clipboard");
+        }
+
+        /* -----------------------------
+           Apple Pay Availability Check
+        ------------------------------*/
+        document.addEventListener("DOMContentLoaded", () => {
+
+            log("Page loaded");
+
+            const hostServer = document.getElementById('hostServer');
+            if (!hostServer.value) hostServer.value = 'https://01aba5987ddc.ngrok-free.app';
+
+            const apiPrefix = document.getElementById('apiPrefix');
+            if (!apiPrefix.value) apiPrefix.value = '/applepay/v1.0';
+
+            const methodId = document.getElementById('methodId');
+            if (!methodId.value) methodId.value = 'a09cb06c-4fc0-4384-b14c-450e3abfc1c9';
+
+            const subscriptionId = document.getElementById('subscriptionId');
+            if (!subscriptionId.value) subscriptionId.value = '00000006-0000-0000-0000-000000000000';
+
+            if (!window.ApplePaySession) {
+                log("ApplePaySession not available");
+                return;
+            }
+
+            if (!ApplePaySession.canMakePayments()) {
+                log("Apple Pay cannot make payments on this device");
+                return;
+            }
+
+            log("Apple Pay is available");
+            document.getElementById("applePayBtn").style.display = "inline-block";
+        });
+
+        /* -----------------------------
+           Start Apple Pay
+        ------------------------------*/
+        document.getElementById("applePayBtn").addEventListener("click", startApplePay);
+
+        function startApplePay() {
+
+            log("Apple Pay button clicked");
+
+            const paymentRequest = {
+                merchantId: "merchant.fr.muslimhands",
+                countryCode: "US",
+                currencyCode: "USD",
+                supportedNetworks: ["visa", "masterCard", "amex"],
+                merchantCapabilities: ["supports3DS"],
+                requiredBillingContactFields: ['postalAddress', 'name', 'email', 'phone'],
+                total: {
+                    label: "Static Debug Store",
+                    amount: "0.10"
+                }
+            };
+
+            log("Payment request created", paymentRequest);
+
+            const session = new ApplePaySession(3, paymentRequest);
+
+            /* -----------------------------
+               Merchant Validation
+            ------------------------------*/
+            session.onvalidatemerchant = async (event) => {
+
+                log("Merchant validation started", {
+                    validationURL: event.validationURL
+                });
+                const params = new URLSearchParams(window.location.search);
+                const serverUrl = params.get("serverUrl");
+
+                const server = serverUrl ?? document.getElementById("hostServer").value;
+                const apiPrefix = document.getElementById('apiPrefix').value;
+                const methodId = document.getElementById('methodId').value;
+
+                const apiUrl = `${normalizeBaseUrl(server)}${normalizePrefix(apiPrefix)}/${methodId}/validatemerchant`;
+                const data = {
+                    parameters: {
+                        flowRevision: 1,
+                        billingInfo: {},
+                        flowId: "aba3460d-cdab-45ad-8090-3bfee160d30c",
+                        scopeId: "",
+                        namedParameters: {
+
+                        }
+                    },
+                    request: {
+                        url: event.validationURL,
+                        initiativeContext: "muslimhands.fr",
+                        initiative: "web"
+                    }
+                };
+
+                const response = await fetch(apiUrl, {
+                    method: "POST",
+                    headers: buildHeaders(),
+                    body: JSON.stringify(data)
+                });
+
+                const merchantSession = await response.json();
+
+                log("Merchant validation response received", merchantSession);
+
+                session.completeMerchantValidation(merchantSession);
+            };
+
+            /* -----------------------------
+               Payment Authorized
+            ------------------------------*/
+            session.onpaymentauthorized = async (event) => {
+
+                log("Payment authorized event received");
+
+                // FULL Apple Pay payment object
+                log("Apple Pay payment object generated", event.payment);
+                log("Apple Pay event object generated", event);
+                const billingContact = event.payment.billingContact;
+
+                if (billingContact) {
+                    log('Billing Address: ', billingContact);
+                } else {
+                    log('No billing contact returned');
+                }
+
+                // Show JSON for copying
+                const prettyJson = JSON.stringify(event.payment);
+                document.getElementById("paymentJson").value = prettyJson;
+                document.getElementById("tokenContainer").style.display = "block";
+
+                log("Apple Pay payment token is available (see below)");
+                const params = new URLSearchParams(window.location.search);
+                const serverUrl = params.get("serverUrl");
+
+                var server = serverUrl ?? document.getElementById("hostServer").value;
+                console.log(server);
+
+                const apiUrl = server + "/applepay/process-payment";
+                const response = await fetch(apiUrl, {
+                    method: "POST",
+                    headers: buildHeaders(),
+                    body: prettyJson
+                }
+                );
+
+                if (response.ok) {
+                    log("Payment successfully sent to backend");
+                    session.completePayment(ApplePaySession.STATUS_SUCCESS);
+
+                    const json = await response.json();
+                    log("Merchant backend response received", json);
+                } else {
+                    log("Payment failed on backend");
+                    session.completePayment(ApplePaySession.STATUS_FAILURE);
+                }
+
+
+            };
+
+            session.oncancel = () => {
+                log("Apple Pay session cancelled by user");
+            };
+
+            session.begin();
+            log("Apple Pay session started");
+        }
+    </script>
+
+</body>
+
+</html>

@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Worldline Tokenization</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 1rem;
+        }
+
+        #hosted-token-frame {
+            width: 100%;
+            height: 400px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            padding: .8rem;
+            width: 100%;
+            background: #007bff;
+            color: white;
+            border: none;
+        }
+    </style>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        #applePayBtn {
+            display: none;
+            padding: 12px 20px;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        #log {
+            border: 1px solid #ccc;
+            padding: 10px;
+            height: 250px;
+            overflow-y: auto;
+            background: #f9f9f9;
+            white-space: pre-wrap;
+            font-size: 13px;
+        }
+
+        #tokenContainer {
+            display: none;
+            margin-top: 20px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 220px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+    <script
+        src="https://payment.preprod.direct.worldline-solutions.com/hostedtokenization/js/client/tokenizer.min.js"></script>
+    <!-- contains the methods needed for tokenization -->
+
+</head>
+
+<body>
+
+
+    <h1>Worldline Tokenization Checkout</h1>
+
+    <input id="bearerToken"></div>
+
+
+    <br />
+    <div id="hosted-token-frame-three-d-secure" hidden>
+        <iframe id="secure3dIFrame" name="secure3dIFrame" style="width: 100%; height: 800px; border: none;"></iframe>
+    </div>
+    <div id="hosted-token-frame">
+    </div>
+    <button id="submit-tokenization">Submit Payment</button>
+    <h3>Log Output</h3>
+    <div id="log"></div>
+
+    <script>
+        const bearerToken = document.getElementById('bearerToken').value === '' ? 'Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IlJUVXlSVVV4T0VOQ1JqTkNNakl4TWpjMU1EVTBNalJDTURkRk5rWTFNekU0TkRJNVFUZzJNQSJ9.eyJodHRwczovL2syLXFhLWV1MS5uM28uY2xvdWQvYXBwX21ldGFkYXRhIjp7InN1YnNjcmlwdGlvbnMiOlt7InN1YnNjcmlwdGlvbklkIjoiMDAwMDAwMDEtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwIiwic3Vic2NyaXB0aW9uTmFtZSI6Ik4zTyBMdGQiLCJhcHBsaWNhdGlvbiI6ImsyIiwiZGF0YVJlZ2lvbiI6ImV1MSJ9LHsic3Vic2NyaXB0aW9uSWQiOiIwMDAwMDAwMi0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDAiLCJzdWJzY3JpcHRpb25OYW1lIjoiQ2FyZSBDb21wYXNzIiwiYXBwbGljYXRpb24iOiJrMiIsImRhdGFSZWdpb24iOiJldTEifSx7InN1YnNjcmlwdGlvbklkIjoiMDAwMDAwMDMtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwIiwic3Vic2NyaXB0aW9uTmFtZSI6IkRldiBTdWJzY3JpcHRpb24gMyIsImFwcGxpY2F0aW9uIjoiazIiLCJkYXRhUmVnaW9uIjoiZXUxIn0seyJzdWJzY3JpcHRpb25JZCI6IjAwMDAwMDA0LTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMCIsInN1YnNjcmlwdGlvbk5hbWUiOiJTYWxtYW4gWmFoaWQgTGF0aWYiLCJhcHBsaWNhdGlvbiI6ImsyIiwiZGF0YVJlZ2lvbiI6ImV1MSJ9LHsic3Vic2NyaXB0aW9uSWQiOiIwMDAwMDAwNi0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDAiLCJzdWJzY3JpcHRpb25OYW1lIjoiTWFuY2hlc3RlciBDaXR5IENoYXJpdHkgQ2x1YiIsImFwcGxpY2F0aW9uIjoiazIiLCJkYXRhUmVnaW9uIjoiZXUxIn0seyJzdWJzY3JpcHRpb25JZCI6IjAwMDAwMDEzLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMCIsInN1YnNjcmlwdGlvbk5hbWUiOiJTaXJhai1EZXYiLCJhcHBsaWNhdGlvbiI6ImsyIiwiZGF0YVJlZ2lvbiI6ImV1MSJ9LHsic3Vic2NyaXB0aW9uSWQiOiIwMDAwMDA2NS0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDAiLCJzdWJzY3JpcHRpb25OYW1lIjoiTWVyY3kgUmVsaWVmIiwiYXBwbGljYXRpb24iOiJrMiIsImRhdGFSZWdpb24iOiJldTEifSx7InN1YnNjcmlwdGlvbklkIjoiMDAwMDAwNjYtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwIiwic3Vic2NyaXB0aW9uTmFtZSI6IlNhbGFtIiwiYXBwbGljYXRpb24iOiJrMiIsImRhdGFSZWdpb24iOiJldTEifSx7InN1YnNjcmlwdGlvbklkIjoiMDAwMDAwNjctMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwIiwic3Vic2NyaXB0aW9uTmFtZSI6IkFjdGlvbiBGb3IgSHVtYW5pdHkiLCJhcHBsaWNhdGlvbiI6ImsyIiwiZGF0YVJlZ2lvbiI6ImV1MSJ9LHsic3Vic2NyaXB0aW9uSWQiOiIwMDAwMDA2OC0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDAiLCJzdWJzY3JpcHRpb25OYW1lIjoiWmFpbWFoIiwiYXBwbGljYXRpb24iOiJrMiIsImRhdGFSZWdpb24iOiJldTEifSx7InN1YnNjcmlwdGlvbklkIjoiMDAwMDAwNjktMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwIiwic3Vic2NyaXB0aW9uTmFtZSI6Ikdsb2JhbCBSYWhtYWggRm91bmRhdGlvbiIsImFwcGxpY2F0aW9uIjoiazIiLCJkYXRhUmVnaW9uIjoiZXUxIn0seyJzdWJzY3JpcHRpb25JZCI6IjAwMDAwMDZhLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMCIsInN1YnNjcmlwdGlvbk5hbWUiOiJHbG9iYWwgUmVsaWVmIFRydXN0IiwiYXBwbGljYXRpb24iOiJrMiIsImRhdGFSZWdpb24iOiJldTEifSx7InN1YnNjcmlwdGlvbklkIjoiMDAwMDAwNmItMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwIiwic3Vic2NyaXB0aW9uTmFtZSI6IlJFQUQgRm91bmRhdGlvbiIsImFwcGxpY2F0aW9uIjoiazIiLCJkYXRhUmVnaW9uIjoiZXUxIn0seyJzdWJzY3JpcHRpb25JZCI6IjAwMDAwMDZlLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMCIsInN1YnNjcmlwdGlvbk5hbWUiOiJNdXNsaW0gSGFuZHMgVUsiLCJhcHBsaWNhdGlvbiI6ImsyIiwiZGF0YVJlZ2lvbiI6ImV1MSJ9LHsic3Vic2NyaXB0aW9uSWQiOiIwMDAwMDA3MC0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDAiLCJzdWJzY3JpcHRpb25OYW1lIjoiQWN0aW9uIGZvciBIdW1hbml0eSBDYW5hZGEiLCJhcHBsaWNhdGlvbiI6ImsyIiwiZGF0YVJlZ2lvbiI6ImV1MSJ9LHsic3Vic2NyaXB0aW9uSWQiOiIwMDAwMDA3My0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDAiLCJzdWJzY3JpcHRpb25OYW1lIjoiTXVzbGltIEhhbmRzIEZyYW5jZSIsImFwcGxpY2F0aW9uIjoiazIiLCJkYXRhUmVnaW9uIjoiZXUxIn0seyJzdWJzY3JpcHRpb25JZCI6IjAwMDAwMDc1LTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMCIsInN1YnNjcmlwdGlvbk5hbWUiOiJNdXNsaW0gSGFuZHMgU291dGggQWZyaWNhIiwiYXBwbGljYXRpb24iOiJrMiIsImRhdGFSZWdpb24iOiJldTEifSx7InN1YnNjcmlwdGlvbklkIjoiMDAwMDAwN2EtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwIiwic3Vic2NyaXB0aW9uTmFtZSI6IkFsIE1hcmlmYWggRm91bmRhdGlvbiIsImFwcGxpY2F0aW9uIjoiazIiLCJkYXRhUmVnaW9uIjoiZXUxIn0seyJzdWJzY3JpcHRpb25JZCI6IjAwMDAwMzIwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMCIsInN1YnNjcmlwdGlvbk5hbWUiOiJTaXJhaiBVciBSZWhtYW4iLCJhcHBsaWNhdGlvbiI6ImsyIiwiZGF0YVJlZ2lvbiI6ImV1MSJ9LHsic3Vic2NyaXB0aW9uSWQiOiIwMDAwMWY0MC0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDAiLCJzdWJzY3JpcHRpb25OYW1lIjoiU2lyYWogVXIgUmFobWFuLU5ldyIsImFwcGxpY2F0aW9uIjoiazIiLCJkYXRhUmVnaW9uIjoiZXUxIn0seyJzdWJzY3JpcHRpb25JZCI6IjAwMDE1ZjkwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMCIsInN1YnNjcmlwdGlvbk5hbWUiOiJTaXJhai1TYWxhbSIsImFwcGxpY2F0aW9uIjoiazIiLCJkYXRhUmVnaW9uIjoiZXUxIn1dfSwiaHR0cHM6Ly9rMi1xYS1ldTEubjNvLmNsb3VkL3VzZXJpbmZvIjp7Il9pZCI6IjlkZjk0ZjU4MzY2N2EzNDdkZDJhN2JjYjBmNTZmYjM1IiwiY2xpZW50SUQiOiJXM1dFeFJiZWJkZjhobmsxYXEzYVNsMEtRaEtTRHFGeiIsImNyZWF0ZWRfYXQiOiIyMDE5LTExLTI4VDA4OjE2OjAyLjA4M1oiLCJlbWFpbCI6InNpcmFqLnVycmFobWFuQG4zby5sdGQiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaWRlbnRpdGllcyI6W3siY29ubmVjdGlvbiI6IlVzZXJuYW1lLVBhc3N3b3JkLUF1dGhlbnRpY2F0aW9uIiwicHJvdmlkZXIiOiJhdXRoMCIsInVzZXJfaWQiOiI1ZGRmODI0MmEzOGVhYjBlMjEyZGE0YjYiLCJpc1NvY2lhbCI6ZmFsc2V9XSwibmFtZSI6IlNpcmFqIFVyUmFobWFuIiwibmlja25hbWUiOiJzaXJhai51cnJhaG1hbiIsInBpY3R1cmUiOiJodHRwczovL3MuZ3JhdmF0YXIuY29tL2F2YXRhci8zODkwODEyOTM2ZDhhZmQzOWI5NGI3ODY4ZWQ1YmYyMT9zPTQ4MCZyPXBnJmQ9aHR0cHMlM0ElMkYlMkZjZG4uYXV0aDAuY29tJTJGYXZhdGFycyUyRnNpLnBuZyIsInVwZGF0ZWRfYXQiOiIyMDI1LTEyLTIyVDA4OjMyOjA0LjUyM1oiLCJ1c2VyX2lkIjoiYXV0aDB8NWRkZjgyNDJhMzhlYWIwZTIxMmRhNGI2IiwibGFzdF9wYXNzd29yZF9yZXNldCI6IjIwMjMtMDYtMjFUMTI6NDc6MTIuNDU3WiIsInVzZXJfbWV0YWRhdGEiOnt9LCJmYW1pbHlfbmFtZSI6IlVyIFJhaG1hbiIsImdpdmVuX25hbWUiOiJzaXJhaiIsImdsb2JhbF9jbGllbnRfaWQiOiJEMXZ6blBGeHdyWjVKcEY0TmNEUm5PU0Q2bmZCODd0SCIsImFwcF9tZXRhZGF0YSI6eyJzdWJzY3JpcHRpb25zIjpbeyJzdWJzY3JpcHRpb25JZCI6IjAwMDAwMDAxLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMCIsInN1YnNjcmlwdGlvbk5hbWUiOiJOM08gTHRkIiwiYXBwbGljYXRpb24iOiJrMiIsImRhdGFSZWdpb24iOiJldTEifSx7InN1YnNjcmlwdGlvbklkIjoiMDAwMDAwMDItMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwIiwic3Vic2NyaXB0aW9uTmFtZSI6IkNhcmUgQ29tcGFzcyIsImFwcGxpY2F0aW9uIjoiazIiLCJkYXRhUmVnaW9uIjoiZXUxIn0seyJzdWJzY3JpcHRpb25JZCI6IjAwMDAwMDAzLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMCIsInN1YnNjcmlwdGlvbk5hbWUiOiJEZXYgU3Vic2NyaXB0aW9uIDMiLCJhcHBsaWNhdGlvbiI6ImsyIiwiZGF0YVJlZ2lvbiI6ImV1MSJ9LHsic3Vic2NyaXB0aW9uSWQiOiIwMDAwMDAwNC0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDAiLCJzdWJzY3JpcHRpb25OYW1lIjoiU2FsbWFuIFphaGlkIExhdGlmIiwiYXBwbGljYXRpb24iOiJrMiIsImRhdGFSZWdpb24iOiJldTEifSx7InN1YnNjcmlwdGlvbklkIjoiMDAwMDAwMDYtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwIiwic3Vic2NyaXB0aW9uTmFtZSI6Ik1hbmNoZXN0ZXIgQ2l0eSBDaGFyaXR5IENsdWIiLCJhcHBsaWNhdGlvbiI6ImsyIiwiZGF0YVJlZ2lvbiI6ImV1MSJ9LHsic3Vic2NyaXB0aW9uSWQiOiIwMDAwMDAxMy0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDAiLCJzdWJzY3JpcHRpb25OYW1lIjoiU2lyYWotRGV2IiwiYXBwbGljYXRpb24iOiJrMiIsImRhdGFSZWdpb24iOiJldTEifSx7InN1YnNjcmlwdGlvbklkIjoiMDAwMDAwNjUtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwIiwic3Vic2NyaXB0aW9uTmFtZSI6Ik1lcmN5IFJlbGllZiIsImFwcGxpY2F0aW9uIjoiazIiLCJkYXRhUmVnaW9uIjoiZXUxIn0seyJzdWJzY3JpcHRpb25JZCI6IjAwMDAwMDY2LTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMCIsInN1YnNjcmlwdGlvbk5hbWUiOiJTYWxhbSIsImFwcGxpY2F0aW9uIjoiazIiLCJkYXRhUmVnaW9uIjoiZXUxIn0seyJzdWJzY3JpcHRpb25JZCI6IjAwMDAwMDY3LTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMCIsInN1YnNjcmlwdGlvbk5hbWUiOiJBY3Rpb24gRm9yIEh1bWFuaXR5IiwiYXBwbGljYXRpb24iOiJrMiIsImRhdGFSZWdpb24iOiJldTEifSx7InN1YnNjcmlwdGlvbklkIjoiMDAwMDAwNjgtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwIiwic3Vic2NyaXB0aW9uTmFtZSI6IlphaW1haCIsImFwcGxpY2F0aW9uIjoiazIiLCJkYXRhUmVnaW9uIjoiZXUxIn0seyJzdWJzY3JpcHRpb25JZCI6IjAwMDAwMDY5LTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMCIsInN1YnNjcmlwdGlvbk5hbWUiOiJHbG9iYWwgUmFobWFoIEZvdW5kYXRpb24iLCJhcHBsaWNhdGlvbiI6ImsyIiwiZGF0YVJlZ2lvbiI6ImV1MSJ9LHsic3Vic2NyaXB0aW9uSWQiOiIwMDAwMDA2YS0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDAiLCJzdWJzY3JpcHRpb25OYW1lIjoiR2xvYmFsIFJlbGllZiBUcnVzdCIsImFwcGxpY2F0aW9uIjoiazIiLCJkYXRhUmVnaW9uIjoiZXUxIn0seyJzdWJzY3JpcHRpb25JZCI6IjAwMDAwMDZiLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMCIsInN1YnNjcmlwdGlvbk5hbWUiOiJSRUFEIEZvdW5kYXRpb24iLCJhcHBsaWNhdGlvbiI6ImsyIiwiZGF0YVJlZ2lvbiI6ImV1MSJ9LHsic3Vic2NyaXB0aW9uSWQiOiIwMDAwMDA2ZS0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDAiLCJzdWJzY3JpcHRpb25OYW1lIjoiTXVzbGltIEhhbmRzIFVLIiwiYXBwbGljYXRpb24iOiJrMiIsImRhdGFSZWdpb24iOiJldTEifSx7InN1YnNjcmlwdGlvbklkIjoiMDAwMDAwNzAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwIiwic3Vic2NyaXB0aW9uTmFtZSI6IkFjdGlvbiBmb3IgSHVtYW5pdHkgQ2FuYWRhIiwiYXBwbGljYXRpb24iOiJrMiIsImRhdGFSZWdpb24iOiJldTEifSx7InN1YnNjcmlwdGlvbklkIjoiMDAwMDAwNzMtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwIiwic3Vic2NyaXB0aW9uTmFtZSI6Ik11c2xpbSBIYW5kcyBGcmFuY2UiLCJhcHBsaWNhdGlvbiI6ImsyIiwiZGF0YVJlZ2lvbiI6ImV1MSJ9LHsic3Vic2NyaXB0aW9uSWQiOiIwMDAwMDA3NS0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDAiLCJzdWJzY3JpcHRpb25OYW1lIjoiTXVzbGltIEhhbmRzIFNvdXRoIEFmcmljYSIsImFwcGxpY2F0aW9uIjoiazIiLCJkYXRhUmVnaW9uIjoiZXUxIn0seyJzdWJzY3JpcHRpb25JZCI6IjAwMDAwMDdhLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMCIsInN1YnNjcmlwdGlvbk5hbWUiOiJBbCBNYXJpZmFoIEZvdW5kYXRpb24iLCJhcHBsaWNhdGlvbiI6ImsyIiwiZGF0YVJlZ2lvbiI6ImV1MSJ9LHsic3Vic2NyaXB0aW9uSWQiOiIwMDAwMDMyMC0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDAiLCJzdWJzY3JpcHRpb25OYW1lIjoiU2lyYWogVXIgUmVobWFuIiwiYXBwbGljYXRpb24iOiJrMiIsImRhdGFSZWdpb24iOiJldTEifSx7InN1YnNjcmlwdGlvbklkIjoiMDAwMDFmNDAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwIiwic3Vic2NyaXB0aW9uTmFtZSI6IlNpcmFqIFVyIFJhaG1hbi1OZXciLCJhcHBsaWNhdGlvbiI6ImsyIiwiZGF0YVJlZ2lvbiI6ImV1MSJ9LHsic3Vic2NyaXB0aW9uSWQiOiIwMDAxNWY5MC0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDAiLCJzdWJzY3JpcHRpb25OYW1lIjoiU2lyYWotU2FsYW0iLCJhcHBsaWNhdGlvbiI6ImsyIiwiZGF0YVJlZ2lvbiI6ImV1MSJ9XX0sInN1YnNjcmlwdGlvbnMiOlt7InN1YnNjcmlwdGlvbklkIjoiMDAwMDAwMDEtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwIiwic3Vic2NyaXB0aW9uTmFtZSI6Ik4zTyBMdGQiLCJhcHBsaWNhdGlvbiI6ImsyIiwiZGF0YVJlZ2lvbiI6ImV1MSJ9LHsic3Vic2NyaXB0aW9uSWQiOiIwMDAwMDAwMi0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDAiLCJzdWJzY3JpcHRpb25OYW1lIjoiQ2FyZSBDb21wYXNzIiwiYXBwbGljYXRpb24iOiJrMiIsImRhdGFSZWdpb24iOiJldTEifSx7InN1YnNjcmlwdGlvbklkIjoiMDAwMDAwMDMtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwIiwic3Vic2NyaXB0aW9uTmFtZSI6IkRldiBTdWJzY3JpcHRpb24gMyIsImFwcGxpY2F0aW9uIjoiazIiLCJkYXRhUmVnaW9uIjoiZXUxIn0seyJzdWJzY3JpcHRpb25JZCI6IjAwMDAwMDA0LTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMCIsInN1YnNjcmlwdGlvbk5hbWUiOiJTYWxtYW4gWmFoaWQgTGF0aWYiLCJhcHBsaWNhdGlvbiI6ImsyIiwiZGF0YVJlZ2lvbiI6ImV1MSJ9LHsic3Vic2NyaXB0aW9uSWQiOiIwMDAwMDAwNi0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDAiLCJzdWJzY3JpcHRpb25OYW1lIjoiTWFuY2hlc3RlciBDaXR5IENoYXJpdHkgQ2x1YiIsImFwcGxpY2F0aW9uIjoiazIiLCJkYXRhUmVnaW9uIjoiZXUxIn0seyJzdWJzY3JpcHRpb25JZCI6IjAwMDAwMDEzLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMCIsInN1YnNjcmlwdGlvbk5hbWUiOiJTaXJhai1EZXYiLCJhcHBsaWNhdGlvbiI6ImsyIiwiZGF0YVJlZ2lvbiI6ImV1MSJ9LHsic3Vic2NyaXB0aW9uSWQiOiIwMDAwMDA2NS0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDAiLCJzdWJzY3JpcHRpb25OYW1lIjoiTWVyY3kgUmVsaWVmIiwiYXBwbGljYXRpb24iOiJrMiIsImRhdGFSZWdpb24iOiJldTEifSx7InN1YnNjcmlwdGlvbklkIjoiMDAwMDAwNjYtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwIiwic3Vic2NyaXB0aW9uTmFtZSI6IlNhbGFtIiwiYXBwbGljYXRpb24iOiJrMiIsImRhdGFSZWdpb24iOiJldTEifSx7InN1YnNjcmlwdGlvbklkIjoiMDAwMDAwNjctMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwIiwic3Vic2NyaXB0aW9uTmFtZSI6IkFjdGlvbiBGb3IgSHVtYW5pdHkiLCJhcHBsaWNhdGlvbiI6ImsyIiwiZGF0YVJlZ2lvbiI6ImV1MSJ9LHsic3Vic2NyaXB0aW9uSWQiOiIwMDAwMDA2OC0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDAiLCJzdWJzY3JpcHRpb25OYW1lIjoiWmFpbWFoIiwiYXBwbGljYXRpb24iOiJrMiIsImRhdGFSZWdpb24iOiJldTEifSx7InN1YnNjcmlwdGlvbklkIjoiMDAwMDAwNjktMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwIiwic3Vic2NyaXB0aW9uTmFtZSI6Ikdsb2JhbCBSYWhtYWggRm91bmRhdGlvbiIsImFwcGxpY2F0aW9uIjoiazIiLCJkYXRhUmVnaW9uIjoiZXUxIn0seyJzdWJzY3JpcHRpb25JZCI6IjAwMDAwMDZhLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMCIsInN1YnNjcmlwdGlvbk5hbWUiOiJHbG9iYWwgUmVsaWVmIFRydXN0IiwiYXBwbGljYXRpb24iOiJrMiIsImRhdGFSZWdpb24iOiJldTEifSx7InN1YnNjcmlwdGlvbklkIjoiMDAwMDAwNmItMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwIiwic3Vic2NyaXB0aW9uTmFtZSI6IlJFQUQgRm91bmRhdGlvbiIsImFwcGxpY2F0aW9uIjoiazIiLCJkYXRhUmVnaW9uIjoiZXUxIn0seyJzdWJzY3JpcHRpb25JZCI6IjAwMDAwMDZlLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMCIsInN1YnNjcmlwdGlvbk5hbWUiOiJNdXNsaW0gSGFuZHMgVUsiLCJhcHBsaWNhdGlvbiI6ImsyIiwiZGF0YVJlZ2lvbiI6ImV1MSJ9LHsic3Vic2NyaXB0aW9uSWQiOiIwMDAwMDA3MC0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDAiLCJzdWJzY3JpcHRpb25OYW1lIjoiQWN0aW9uIGZvciBIdW1hbml0eSBDYW5hZGEiLCJhcHBsaWNhdGlvbiI6ImsyIiwiZGF0YVJlZ2lvbiI6ImV1MSJ9LHsic3Vic2NyaXB0aW9uSWQiOiIwMDAwMDA3My0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDAiLCJzdWJzY3JpcHRpb25OYW1lIjoiTXVzbGltIEhhbmRzIEZyYW5jZSIsImFwcGxpY2F0aW9uIjoiazIiLCJkYXRhUmVnaW9uIjoiZXUxIn0seyJzdWJzY3JpcHRpb25JZCI6IjAwMDAwMDc1LTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMCIsInN1YnNjcmlwdGlvbk5hbWUiOiJNdXNsaW0gSGFuZHMgU291dGggQWZyaWNhIiwiYXBwbGljYXRpb24iOiJrMiIsImRhdGFSZWdpb24iOiJldTEifSx7InN1YnNjcmlwdGlvbklkIjoiMDAwMDAwN2EtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwIiwic3Vic2NyaXB0aW9uTmFtZSI6IkFsIE1hcmlmYWggRm91bmRhdGlvbiIsImFwcGxpY2F0aW9uIjoiazIiLCJkYXRhUmVnaW9uIjoiZXUxIn0seyJzdWJzY3JpcHRpb25JZCI6IjAwMDAwMzIwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMCIsInN1YnNjcmlwdGlvbk5hbWUiOiJTaXJhaiBVciBSZWhtYW4iLCJhcHBsaWNhdGlvbiI6ImsyIiwiZGF0YVJlZ2lvbiI6ImV1MSJ9LHsic3Vic2NyaXB0aW9uSWQiOiIwMDAwMWY0MC0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDAiLCJzdWJzY3JpcHRpb25OYW1lIjoiU2lyYWogVXIgUmFobWFuLU5ldyIsImFwcGxpY2F0aW9uIjoiazIiLCJkYXRhUmVnaW9uIjoiZXUxIn0seyJzdWJzY3JpcHRpb25JZCI6IjAwMDE1ZjkwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMCIsInN1YnNjcmlwdGlvbk5hbWUiOiJTaXJhai1TYWxhbSIsImFwcGxpY2F0aW9uIjoiazIiLCJkYXRhUmVnaW9uIjoiZXUxIn1dLCJwZXJzaXN0ZW50Ijp7fX0sImlzcyI6Imh0dHBzOi8vbG9naW4ubjNvLmNsb3VkLyIsInN1YiI6ImF1dGgwfDVkZGY4MjQyYTM4ZWFiMGUyMTJkYTRiNiIsImF1ZCI6WyJodHRwczovL24zby5sdGQva2FyYWtvcmFtIiwiaHR0cHM6Ly9uM28uZXUuYXV0aDAuY29tL3VzZXJpbmZvIl0sImlhdCI6MTc2Njc0Mjg0OSwiZXhwIjoxNzY2ODI5MjQ5LCJzY29wZSI6Im9wZW5pZCBwcm9maWxlIGVtYWlsIG9mZmxpbmVfYWNjZXNzIiwiYXpwIjoiVzNXRXhSYmViZGY4aG5rMWFxM2FTbDBLUWhLU0RxRnoifQ.jkXqKx3KwmMGaKjKuG0jc6osShg1Bz95gJMLWWky8lnI6tXpac99UktVsdo4dakN9pVxihJODKLdXX2TqvhRi1P3my8kuYkKOfQrhudn5p2DO-sP1tVos6pbGJQZqsegahua9srMfxaKDmlkeECN9byV1CIQ_6po9E35aw4-zovLQpgmMZU_VUjF1uIj9I7dF5NXCssTg92tzRGTDxB0WXUMbtuCd3yTA9DVPp4efGIHd-OkgF7cwFVyoNjOG8JvhnR4521N7kLICp1X6gO_JYXXEiRU-DNKqo3rBI3G6_mGXkBnsgf_d9rOWNduqceYn1R5BJvGdiPvIGojq8abuA'
+            : '';
+        document.getElementById('bearerToken').value = bearerToken;
+        function log(message, data) {
+            const logBox = document.getElementById("log");
+            const timestamp = new Date().toISOString();
+            let text = `[${timestamp}] ${message}`;
+
+            if (data) {
+                console.log(message, data);
+                text += "\n" + JSON.stringify(data, null, 2);
+            } else {
+                console.log(message);
+            }
+
+            logBox.textContent += text + "\n\n";
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+        function copyJson() {
+            const textarea = document.getElementById("paymentJson");
+            textarea.select();
+            document.execCommand("copy");
+            alert("Apple Pay JSON copied to clipboard");
+        }
+        const account = {
+            type: 'individual',
+            firstName: 'Siraj',
+            lastName: 'ur Rehman',
+            email: 'testimpoort@yopmail.com',
+            address: {
+                multiLineText: '234\n440000\nPakistan',
+                singleLineText: '234, 440000, Pakistan',
+                isInternational: true,
+                line1: '234',
+                postalCode: '440000',
+                country: 'PK'
+            },
+            id: '5b65a92f-42d9-43d7-b842-f60d81b5ce19',
+            reference: {
+                type: 'AC',
+                number: 1000206,
+                text: 'AC1000206'
+            },
+            name: 'Mr Siraj ur Rehman',
+            initials: 'Su',
+            color: '#FFA940'
+        };
+        function loadJS(FILE_URL, async = true, onLoadAction = () => { }) {
+            let scriptEle = document.createElement("script");
+
+            scriptEle.setAttribute("src", FILE_URL);
+            scriptEle.setAttribute("type", "text/javascript");
+            scriptEle.setAttribute("async", async);
+            document.body.appendChild(scriptEle);
+
+            scriptEle.addEventListener("load", () => {
+                onLoadAction();
+            });
+
+            scriptEle.addEventListener("error", (ev) => {
+                console.log("Error on loading file", ev);
+            });
+        }
+
+        async function initTokenization() {
+            const res = await fetch('http://localhost:25713/worldline/v1.0/264cd00d-3d90-4eaa-9bd5-8cc0b7e5fbd6/hostedtokenizationsession', {
+                method: 'POST',
+                headers: {
+                    'accept': 'application/json',
+                    'N3O-Ignore-Validation-Warnings': 'false',
+                    'N3O-Subscription-Id': '00000006-0000-0000-0000-000000000000',
+                    'Authorization': bearerToken,
+                    'Content-Type': 'application/json'
+                },
+                // body: '{\n  "account": {\n    "type": "individual",\n    "firstName": "Siraj",\n    "lastName": "ur Rehman",\n    "email": "testimpoort@yopmail.com",\n    "address": {\n      "multiLineText": "234\\n440000\\nPakistan",\n      "singleLineText": "234, 440000, Pakistan",\n      "isInternational": true,\n      "line1": "234",\n      "postalCode": "440000",\n      "country": "PK"\n    },\n    "id": "5b65a92f-42d9-43d7-b842-f60d81b5ce19",\n    "reference": {\n      "type": "AC",\n      "number": 1000206,\n      "text": "AC1000206"\n    },\n    "name": "Mr Siraj ur Rehman",\n    "initials": "Su",\n    "color": "#FFA940"\n  }\n}',
+                body: JSON.stringify({ 'account': account })
+            });
+
+            const { hostedTokenizationId, hostedTokenizationUrl } = await res.json();
+            log("Intialized with " + hostedTokenizationId);
+            async function initializeTokenizer(hostedTokenizationUrl) {
+                try {
+                    tokenizer = new Tokenizer(hostedTokenizationUrl, 'hosted-token-frame', { hideCardholderName: false });
+
+                    await tokenizer.initialize();
+                } catch (error) {
+                    console.error(error);
+                }
+            }
+
+            initializeTokenizer(hostedTokenizationUrl);
+
+            // loadJS(`${hostedTokenizationUrl}/hostedtokenization/js/client/tokenizer.min.js`, true, () => initializeTokenizer(data.tokenizationUrl))
+
+            // 3) On submit, call built-in function
+            document.getElementById('submit-tokenization').addEventListener('click', () => {
+                tokenizer.submitTokenization({ storePermanently: false })
+                    .then(async result => {
+                        console.log(result.hostedTokenizationId);
+                        await processFlowCredentialRequest(result.hostedTokenizationId);
+                    });
+            });
+        }
+
+        initTokenization();
+        const browserInfo = {
+            userAgentHeader: navigator.userAgent,
+            acceptHeader: '*/*',
+            formTargetId: 'secure3dIFrame',
+            browserColorDepthBits: screen.colorDepth?.toString() || '',
+            browserJavaEnabled: navigator.javaEnabled().toString(),
+            browserLanguage: navigator.language || '',
+            browserScreenHeight: screen.height?.toString() || '',
+            browserScreenWidth: screen.width?.toString() || '',
+            browserUtcOffset: new Date().getTimezoneOffset().toString()
+        };
+
+        const billingInfo = {
+            name: {
+                firstName: 'siraj',
+                lastName: 'ur rahman'
+            },
+            address: {
+                multiLineText: '234\n440000\nPakistan',
+                singleLineText: '234, 440000, Pakistan',
+                isInternational: true,
+                line1: '234',
+                postalCode: '440000',
+                country: 'PK'
+            },
+            email: {
+                address: 'siraj.urrahman@n3o.ltd'
+            },
+            telephone: {
+                country: 'PK',
+                number: '3335183701'
+            }
+        };
+
+        console.log(browserInfo);
+
+        const flowParameters = {
+            flowId: "",
+            flowRevision: 1,
+            scopeId: '',
+            billingInfo: billingInfo,
+            namedParameters: {
+                methodId: '264cd00d-3d90-4eaa-9bd5-8cc0b7e5fbd6'
+            }
+        };
+
+        function processCustomerRequest(token) {
+            const paymentData = {
+                account: account,
+                billingInfo: {
+                    name: {
+                        firstName: 'siraj',
+                        lastName: 'ur rahman'
+                    },
+                    address: {
+                        multiLineText: '234\n440000\nPakistan',
+                        singleLineText: '234, 440000, Pakistan',
+                        isInternational: true,
+                        line1: '234',
+                        postalCode: '440000',
+                        country: 'PK'
+                    },
+                    email: {
+                        address: 'siraj.urrahman@n3o.ltd'
+                    },
+                    telephone: {
+                        country: 'PK',
+                        number: '3335183701'
+                    }
+                },
+                method: {
+                    date: '2025-12-22',
+                    quoteValue: {
+                        currency: 'EUR',
+                        amount: 10
+                    },
+                    idempotencyKey: '123',
+                    postalCode: '440000',
+                    country: 'PK',
+                    HostedTokenizationId: token
+                }
+            };
+
+            fetch('http://localhost:25713/worldline/v1.0/264cd00d-3d90-4eaa-9bd5-8cc0b7e5fbd6/flow/payment', {
+                method: 'POST',
+                headers: {
+                    'accept': 'application/json',
+                    'N3O-Ignore-Validation-Warnings': 'true',
+                    'N3O-Subscription-Id': '00000006-0000-0000-0000-000000000000',
+                    'Authorization': bearerToken,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(paymentData),
+            });
+        }
+
+        function processFlowPaymentRequest(token) {
+            const paymentData = {
+                account: account,
+                Parameters: flowParameters,
+                Request: {
+                    date: '2025-12-22',
+                    value: {
+                        currency: 'EUR',
+                        amount: 10
+                    },
+                    idempotencyKey: '123',
+                    hostedTokenizationId: token,
+                    digitalWallet: {
+                        apple: {
+                            token: "eyJ0b2tlbiI6eyJwYXltZW50RGF0YSI6eyJkYXRhIjoiU3hwSzREckM4S1JPdVNGVXltdnliRllFV3hWd3kxeHg5akRZQUFMMGtlOU1ZdStuclNPajlzb0FJYnlBcG1CaFFnRFp5NDRzdXRrbWRnRjRQSWdFVVBnOVhGVmpRcmJ0aEQ0TXpoOEZvaklLSnB5WjNzV3BoS1RSRTUyNWdRUU5SR3d2dGowcHd6THVxWEgvaDlOQVA1V3FnSURsYW9KUHBmRFFic1VIbE00ajkrc3Nha2I4M3ExdlZmY2NNMFFJWUJRZTY4ODY4a1ZzcXJVZ1MvVTZQT2YvNkVQclN6UE9yRFdhRWRBaXNtZGlTbGJHUC90QVFHZWpMbnNSd0M0Z2libE01bkRsL2Znay9UMThidnZBR2E4bDJKRW44UldHVlhRT3JMR29nV3RvNElvRmZBcitMNWMxRWZEWEZEYjVNaXg1TXNOT0NHYVhzMTFpZXdvd3F3YldYZ3BKbWZONjhqckljUUZsU0I0clFSVzF2Tmw5SExDem11Mlo2a09mb0ozdjZ5TmtlaUh1YktZPSIsInNpZ25hdHVyZSI6Ik1JQUdDU3FHU0liM0RRRUhBcUNBTUlBQ0FRRXhEVEFMQmdsZ2hrZ0JaUU1FQWdFd2dBWUpLb1pJaHZjTkFRY0JBQUNnZ0RDQ0ErTXdnZ09Jb0FNQ0FRSUNDQlpqVElzT01GY1hNQW9HQ0NxR1NNNDlCQU1DTUhveExqQXNCZ05WQkFNTUpVRndjR3hsSUVGd2NHeHBZMkYwYVc5dUlFbHVkR1ZuY21GMGFXOXVJRU5CSUMwZ1J6TXhKakFrQmdOVkJBc01IVUZ3Y0d4bElFTmxjblJwWm1sallYUnBiMjRnUVhWMGFHOXlhWFI1TVJNd0VRWURWUVFLREFwQmNIQnNaU0JKYm1NdU1Rc3dDUVlEVlFRR0V3SlZVekFlRncweU5EQTBNamt4TnpRM01qZGFGdzB5T1RBME1qZ3hOelEzTWpaYU1GOHhKVEFqQmdOVkJBTU1IR1ZqWXkxemJYQXRZbkp2YTJWeUxYTnBaMjVmVlVNMExWQlNUMFF4RkRBU0JnTlZCQXNNQzJsUFV5QlRlWE4wWlcxek1STXdFUVlEVlFRS0RBcEJjSEJzWlNCSmJtTXVNUXN3Q1FZRFZRUUdFd0pWVXpCWk1CTUdCeXFHU000OUFnRUdDQ3FHU000OUF3RUhBMElBQk1JVmQrM3Ixc2V5SVk5bzNYQ1FvU0dOeDdDOWJ5d29QWVJnbGRsSzlLVkJHNE5DRHRnUjgwQitnek1mSEZURDkrc3lJTmE2MWRUdjlKS0ppVDU4RHhPamdnSVJNSUlDRFRBTUJnTlZIUk1CQWY4RUFqQUFNQjhHQTFVZEl3UVlNQmFBRkNQeVNjUlBrK1R2SitiRTlpaHNQNks3L1M1TE1FVUdDQ3NHQVFVRkJ3RUJCRGt3TnpBMUJnZ3JCZ0VGQlFjd0FZWXBhSFIwY0RvdkwyOWpjM0F1WVhCd2JHVXVZMjl0TDI5amMzQXdOQzFoY0hCc1pXRnBZMkV6TURJd2dnRWRCZ05WSFNBRWdnRVVNSUlCRURDQ0FRd0dDU3FHU0liM1kyUUZBVENCL2pDQnd3WUlLd1lCQlFVSEFnSXdnYllNZ2JOU1pXeHBZVzVqWlNCdmJpQjBhR2x6SUdObGNuUnBabWxqWVhSbElHSjVJR0Z1ZVNCd1lYSjBlU0JoYzNOMWJXVnpJR0ZqWTJWd2RHRnVZMlVnYjJZZ2RHaGxJSFJvWlc0Z1lYQndiR2xqWVdKc1pTQnpkR0Z1WkdGeVpDQjBaWEp0Y3lCaGJtUWdZMjl1WkdsMGFXOXVjeUJ2WmlCMWMyVXNJR05sY25ScFptbGpZWFJsSUhCdmJHbGplU0JoYm1RZ1kyVnlkR2xtYVdOaGRHbHZiaUJ3Y21GamRHbGpaU0J6ZEdGMFpXMWxiblJ6TGpBMkJnZ3JCZ0VGQlFjQ0FSWXFhSFIwY0RvdkwzZDNkeTVoY0hCc1pTNWpiMjB2WTJWeWRHbG1hV05oZEdWaGRYUm9iM0pwZEhrdk1EUUdBMVVkSHdRdE1Dc3dLYUFub0NXR0kyaDBkSEE2THk5amNtd3VZWEJ3YkdVdVkyOXRMMkZ3Y0d4bFlXbGpZVE11WTNKc01CMEdBMVVkRGdRV0JCU1VWOXR2MVhTQmhvbUpkaTkrVjRVSDU1dFlKREFPQmdOVkhROEJBZjhFQkFNQ0I0QXdEd1lKS29aSWh2ZGpaQVlkQkFJRkFEQUtCZ2dxaGtqT1BRUURBZ05KQURCR0FpRUF4dkFqeXlZVXV6QTRpS0ZpbUQ0YWsvRUZiMUQ2ZU0yNXVreWlRY3dVNGw0Q0lRQytQTkRmMFdKSDlrbEVkVGdPblVUQ0tLRUlrS09oM0hKTGkweTRpSmdZdkRDQ0F1NHdnZ0oxb0FNQ0FRSUNDRWx0TDc4Nm1OcVhNQW9HQ0NxR1NNNDlCQU1DTUdjeEd6QVpCZ05WQkFNTUVrRndjR3hsSUZKdmIzUWdRMEVnTFNCSE16RW1NQ1FHQTFVRUN3d2RRWEJ3YkdVZ1EyVnlkR2xtYVdOaGRHbHZiaUJCZFhSb2IzSnBkSGt4RXpBUkJnTlZCQW9NQ2tGd2NHeGxJRWx1WXk0eEN6QUpCZ05WQkFZVEFsVlRNQjRYRFRFME1EVXdOakl6TkRZek1Gb1hEVEk1TURVd05qSXpORFl6TUZvd2VqRXVNQ3dHQTFVRUF3d2xRWEJ3YkdVZ1FYQndiR2xqWVhScGIyNGdTVzUwWldkeVlYUnBiMjRnUTBFZ0xTQkhNekVtTUNRR0ExVUVDd3dkUVhCd2JHVWdRMlZ5ZEdsbWFXTmhkR2x2YmlCQmRYUm9iM0pwZEhreEV6QVJCZ05WQkFvTUNrRndjR3hsSUVsdVl5NHhDekFKQmdOVkJBWVRBbFZUTUZrd0V3WUhLb1pJemowQ0FRWUlLb1pJemowREFRY0RRZ0FFOEJjUmhCblhaSVhWR2w0bGdRZDI2SUNpNzk1N3JrM2dqZnhMaytFelZ0Vm1Xeld1SXRDWGRnMGlUbnU2Q1AxMkY4Nkl5M2E3Wm5DK3lPZ3BoUDlVUmFPQjl6Q0I5REJHQmdnckJnRUZCUWNCQVFRNk1EZ3dOZ1lJS3dZQkJRVUhNQUdHS21oMGRIQTZMeTl2WTNOd0xtRndjR3hsTG1OdmJTOXZZM053TURRdFlYQndiR1Z5YjI5MFkyRm5NekFkQmdOVkhRNEVGZ1FVSS9KSnhFK1Q1TzhuNXNUMktHdy9vcnY5TGtzd0R3WURWUjBUQVFIL0JBVXdBd0VCL3pBZkJnTlZIU01FR0RBV2dCUzdzTjZoV0RPSW1xU0ttZDYrdmV1djJzc2txekEzQmdOVkhSOEVNREF1TUN5Z0txQW9oaVpvZEhSd09pOHZZM0pzTG1Gd2NHeGxMbU52YlM5aGNIQnNaWEp2YjNSallXY3pMbU55YkRBT0JnTlZIUThCQWY4RUJBTUNBUVl3RUFZS0tvWklodmRqWkFZQ0RnUUNCUUF3Q2dZSUtvWkl6ajBFQXdJRFp3QXdaQUl3T3M5eWcxRVdtYkdHK3pYRFZzcGl2L1FYN2RrUGRVMmlqcjd4bklGZVFyZUorSmozbTFtZm1OVkJEWStkNmNMK0FqQXlMZFZFSWJDakJYZHNYZk00TzVCbi9SZDhMQ0Z0bGsvR2NtbUNFbTlVK0hwOUc1bkxtd21KSVdFR21ROEpraDBBQURHQ0FZZ3dnZ0dFQWdFQk1JR0dNSG94TGpBc0JnTlZCQU1NSlVGd2NHeGxJRUZ3Y0d4cFkyRjBhVzl1SUVsdWRHVm5jbUYwYVc5dUlFTkJJQzBnUnpNeEpqQWtCZ05WQkFzTUhVRndjR3hsSUVObGNuUnBabWxqWVhScGIyNGdRWFYwYUc5eWFYUjVNUk13RVFZRFZRUUtEQXBCY0hCc1pTQkpibU11TVFzd0NRWURWUVFHRXdKVlV3SUlGbU5NaXc0d1Z4Y3dDd1lKWUlaSUFXVURCQUlCb0lHVE1CZ0dDU3FHU0liM0RRRUpBekVMQmdrcWhraUc5dzBCQndFd0hBWUpLb1pJaHZjTkFRa0ZNUThYRFRJMU1USXlNekV6TURBME5Wb3dLQVlKS29aSWh2Y05BUWswTVJzd0dUQUxCZ2xnaGtnQlpRTUVBZ0doQ2dZSUtvWkl6ajBFQXdJd0x3WUpLb1pJaHZjTkFRa0VNU0lFSUNERDhtbkpTamdkaEFiaUJIZ05panNocU0wMzEvTEpWSGpWNDZ0dXBQSkNNQW9HQ0NxR1NNNDlCQU1DQkVjd1JRSWdYZGFEUkczbG1tN2piajJXdk5ldHg4R1lpRVdHWDZTRXpMY0NMdGdjRXZvQ0lRQzdiem1tclRlTFFIN2FmZ09mZ1ZNRjg3U3pEMXg2blZqVysvQWFacVc2bVFBQUFBQUFBQT09IiwiaGVhZGVyIjp7InB1YmxpY0tleUhhc2giOiJaZ1JDRno3VjJjRGdjLzVGQnNTOEQxZC9McmtxN05ldlU4T1djT1NkZ1ZBPSIsImVwaGVtZXJhbFB1YmxpY0tleSI6Ik1Ga3dFd1lIS29aSXpqMENBUVlJS29aSXpqMERBUWNEUWdBRXdxdi9JeWlJaHk0elVEUjVxSDAxRm4xdGY1bUJiUFVvazc3a1ZqV2JLdTY1Nm5jd0xubDhIRXJxQUtHS2FraEdaTXI4d2NQKzdXdjZpd2hzSkduK2Z3PT0iLCJ0cmFuc2FjdGlvbklkIjoiNDJjZjQyYjE4MTFmMjU0ZmM5MzcxYTZlZGIyNzVkN2Y3MTE4M2NkYTZmMmUzNmUxODBlYmQ5MDM3YjUyMDRlNiJ9LCJ2ZXJzaW9uIjoiRUNfdjEifSwicGF5bWVudE1ldGhvZCI6eyJkaXNwbGF5TmFtZSI6Ik1hc3RlckNhcmQgMTMxMiIsIm5ldHdvcmsiOiJNYXN0ZXJDYXJkIiwidHlwZSI6ImRlYml0In0sInRyYW5zYWN0aW9uSWRlbnRpZmllciI6IjQyQ0Y0MkIxODExRjI1NEZDOTM3MUE2RURCMjc1RDdGNzExODNDREE2RjJFMzZFMTgwRUJEOTAzN0I1MjA0RTYifX0=",
+                            cardBrand: "MasterCard",
+                            billingInfo: billingInfo
+                        },
+                        type: 'apple'
+                        // threeDSecure: {
+                        //     callbackUrl: 'http://localhost:3000/worldline3ds/',
+                        //     ...browserInfo
+                        // }
+                    }
+                }
+            };
+
+            fetch('http://localhost:25713/worldline/v1.0/264cd00d-3d90-4eaa-9bd5-8cc0b7e5fbd6/flow/payment', {
+                method: 'POST',
+                headers: {
+                    'accept': 'application/json',
+                    'N3O-Ignore-Validation-Warnings': 'true',
+                    'N3O-Subscription-Id': '00000006-0000-0000-0000-000000000000',
+                    'Authorization': bearerToken,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(paymentData),
+            }).then(res => res.json())
+                .then(apiRes => {
+                    log("Payment: ", apiRes);
+                    document.getElementById('hosted-token-frame').hidden = true;
+                    document.getElementById('hosted-token-frame-three-d-secure').hidden = false;
+                    // Assume `response` is your CreatePaymentResponse
+                    if (apiRes.result.worldlineActionRequired && apiRes.result.worldlineActionUrl) {
+                        var iframe = document.getElementById("secure3dIFrame");
+                        iframe.src = apiRes.result.worldlineActionUrl;
+                    }
+
+                });
+        }
+
+        function processFlowCredentialRequest(token) {
+            const credentialData = {
+                account: account,
+                Parameters: flowParameters,
+                Request: {
+                    hostedTokenizationId: token,
+                    setupPayment: {
+                        value: {
+                            currency: 'EUR',
+                            amount: 10
+                        },
+                        activeCheckOnly: true
+                    },
+                    threeDSecure: {
+                        ...browserInfo
+                    },
+                    redirectUrl: 'http://localhost:3000/worldline3ds',
+
+                }
+            };
+            fetch('http://localhost:25713/worldline/v1.0/264cd00d-3d90-4eaa-9bd5-8cc0b7e5fbd6/flow/credential', {
+                method: 'POST',
+                headers: {
+                    'accept': 'application/json',
+                    'N3O-Ignore-Validation-Warnings': 'true',
+                    'N3O-Subscription-Id': '00000006-0000-0000-0000-000000000000',
+                    'Authorization': bearerToken,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(credentialData),
+            }).then(res => res.json())
+                .then(apiRes => {
+                    log("Payment: ", apiRes);
+                    document.getElementById('hosted-token-frame').hidden = true;
+                    document.getElementById('hosted-token-frame-three-d-secure').hidden = false;
+                    // Assume `response` is your CreatePaymentResponse
+                    if (apiRes.result.requireAction && apiRes.result.actionUrl) {
+                        var iframe = document.getElementById("secure3dIFrame");
+                        iframe.src = apiRes.result.actionUrl;
+                    }
+
+                });
+        }
+
+    </script>
+
+</body>
+
+</html>

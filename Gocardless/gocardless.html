@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>GoCardless Redirect Flow</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 960px;
+            margin: 0 auto;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-top: 12px;
+            margin-bottom: 6px;
+        }
+
+        input[type="text"],
+        input[type="url"],
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 13px;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            min-height: 220px;
+            resize: vertical;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+
+        .actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 14px;
+        }
+
+        button {
+            padding: 12px 16px;
+            font-size: 14px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button.primary {
+            background: #007bff;
+            color: white;
+        }
+
+        button.secondary {
+            background: #f1f3f5;
+            color: #111;
+        }
+
+        #log {
+            border: 1px solid #ccc;
+            padding: 10px;
+            height: 260px;
+            overflow-y: auto;
+            background: #f9f9f9;
+            white-space: pre-wrap;
+            font-size: 13px;
+            margin-top: 14px;
+        }
+
+        .pill {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: #eef5ff;
+            color: #0b5ed7;
+            font-size: 12px;
+            margin-left: 8px;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>GoCardless Redirect Flow <span id="mode" class="pill"></span></h1>
+
+    <div class="row">
+        <div>
+            <label for="serverBase">Server Base URL</label>
+            <input id="serverBase" type="url" placeholder="http://localhost:25713" />
+        </div>
+        <div>
+            <label for="apiPrefix">API Prefix</label>
+            <input id="apiPrefix" type="text" placeholder="/gocardless/v1.0" />
+        </div>
+    </div>
+
+    <div class="row">
+        <div>
+            <label for="methodId">Method ID</label>
+            <input id="methodId" type="text" placeholder="{methodId}" />
+        </div>
+        <div>
+            <label for="flowId">Flow ID</label>
+            <input id="flowId" type="text" placeholder="{flowId}" />
+        </div>
+    </div>
+
+    <label for="scopeId">Scope ID</label>
+    <input id="scopeId" type="text" placeholder="{scopeId}" />
+
+    <div class="row">
+        <div>
+            <label for="subscriptionId">Subscription ID (Header: N3O-Subscription-Id)</label>
+            <input id="subscriptionId" type="text" placeholder="00000000-0000-0000-0000-000000000000" />
+        </div>
+        <div>
+            <label for="bearerToken">Authorization Header Value</label>
+            <input id="bearerToken" type="text" placeholder="Bearer ..." />
+        </div>
+    </div>
+
+    <label for="createCredentialBody">CreateCredential Body (JSON)</label>
+    <textarea id="createCredentialBody"></textarea>
+
+    <div class="actions">
+        <button id="btnGenerateCreate" class="secondary" type="button">Generate CreateCredential Template</button>
+        <button id="btnCreateCredential" class="primary" type="button">Create Credential</button>
+    </div>
+
+    <div id="redirectSection" class="hidden">
+        <label for="completeRedirectBody">CompleteRedirectFlow Body (JSON)</label>
+        <textarea id="completeRedirectBody"></textarea>
+        <div class="actions">
+            <button id="btnGenerateComplete" class="secondary" type="button">Generate CompleteRedirectFlow
+                Template</button>
+            <button id="btnCompleteRedirect" class="primary" type="button">Complete Redirect Flow</button>
+        </div>
+    </div>
+
+    <h3>Log Output</h3>
+    <div id="log"></div>
+
+    <script>
+        const billingInfo = {
+            name: {
+                firstName: 'siraj',
+                lastName: 'ur rahman'
+            },
+            address: {
+                multiLineText: '234\n440000\nPakistan',
+                singleLineText: '234, 440000, Pakistan',
+                isInternational: true,
+                line1: '234',
+                postalCode: '440000',
+                country: 'PK'
+            },
+            email: {
+                address: 'siraj.urrahman@n3o.ltd'
+            },
+            telephone: {
+                country: 'PK',
+                number: '3335183701'
+            }
+        };
+        const storageKeys = {
+            config: 'gocardless.redirectFlow.config',
+            credentialId: 'gocardless.redirectFlow.credentialId'
+        };
+
+        function nowIso() {
+            return new Date().toISOString();
+        }
+
+        function log(message, data) {
+            const logBox = document.getElementById('log');
+            let text = `[${nowIso()}] ${message}`;
+            if (data !== undefined) {
+                text += `\n${JSON.stringify(data, null, 2)}`;
+            }
+            logBox.textContent += `${text}\n\n`;
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        function normalizeBaseUrl(value) {
+            return (value || '').trim().replace(/\/+$/g, '');
+        }
+
+        function normalizePrefix(value) {
+            const v = (value || '').trim();
+            if (!v) return '';
+            if (v === '/') return '';
+            return `/${v.replace(/^\/+/, '').replace(/\/+$/, '')}`;
+        }
+
+        function buildEndpoint(serverBase, apiPrefix, path) {
+            const base = normalizeBaseUrl(serverBase);
+            const prefix = normalizePrefix(apiPrefix);
+            const p = `/${(path || '').replace(/^\/+/, '')}`;
+            if (!base) {
+                throw new Error('Error: Server Base URL is required');
+            }
+            return `${base}${prefix}${p}`;
+        }
+
+        function getReturnUrl() {
+            return `${window.location.origin}${window.location.pathname}`;
+        }
+
+        function readConfigFromInputs() {
+            const serverBase = document.getElementById('serverBase').value;
+            const apiPrefix = document.getElementById('apiPrefix').value;
+            const methodId = document.getElementById('methodId').value;
+            const flowId = document.getElementById('flowId').value;
+            const scopeId = document.getElementById('scopeId').value;
+            const subscriptionId = document.getElementById('subscriptionId').value;
+            const bearerToken = document.getElementById('bearerToken').value;
+
+            return {
+                serverBase,
+                apiPrefix,
+                methodId,
+                flowId,
+                scopeId,
+                subscriptionId,
+                bearerToken
+            };
+        }
+
+        function writeConfigToStorage(config) {
+            localStorage.setItem(storageKeys.config, JSON.stringify(config));
+        }
+
+        function writeCredentialIdToStorage(credentialId) {
+            const id = (credentialId || '').toString().trim();
+            if (!id) return;
+            localStorage.setItem(storageKeys.credentialId, id);
+        }
+
+        function readConfigFromStorage() {
+            try {
+                const raw = localStorage.getItem(storageKeys.config);
+                if (!raw) return null;
+                return JSON.parse(raw);
+            } catch {
+                return null;
+            }
+        }
+
+        function readCredentialIdFromStorage() {
+            try {
+                const raw = localStorage.getItem(storageKeys.credentialId);
+                const id = (raw || '').toString().trim();
+                return id || null;
+            } catch {
+                return null;
+            }
+        }
+
+        function applyConfigToInputs(config) {
+            if (!config) return;
+            const assign = (id, value) => {
+                if (value === undefined || value === null) return;
+                const el = document.getElementById(id);
+                if (el && !el.value) el.value = value;
+            };
+
+            assign('serverBase', config.serverBase);
+            assign('apiPrefix', config.apiPrefix);
+            assign('methodId', config.methodId);
+            assign('flowId', config.flowId);
+            assign('scopeId', config.scopeId);
+            assign('subscriptionId', config.subscriptionId);
+            assign('bearerToken', config.bearerToken);
+        }
+
+        function tryParseJson(text) {
+            try {
+                return { ok: true, value: JSON.parse(text) };
+            } catch (e) {
+                return { ok: false, error: e };
+            }
+        }
+
+        function buildAuthHeaders(config) {
+            const headers = {
+                accept: 'application/json',
+                'Content-Type': 'application/json'
+            };
+
+            if ((config.subscriptionId || '').trim()) {
+                headers['N3O-Subscription-Id'] = config.subscriptionId.trim();
+            }
+
+            if ((config.bearerToken || '').trim()) {
+                headers['Authorization'] = config.bearerToken.trim();
+            }
+
+            return headers;
+        }
+
+        function sanitizeRedirectUrl(value) {
+            if (typeof value !== 'string') return null;
+
+            let s = value.trim();
+            s = s.replace(/^`+/, '').replace(/`+$/, '').trim();
+
+            if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+                s = s.slice(1, -1).trim();
+            }
+
+            return s || null;
+        }
+
+        function extractRedirectUrlFromResponse(response) {
+            if (!response || typeof response !== 'object') return null;
+
+            const candidates = [
+                response?.result?.redirectFlow?.redirectUrl,
+                response?.result?.redirectFlow?.authorisationUrl,
+                response?.result?.redirectFlow?.authorizationUrl,
+                response?.result?.actionUrl,
+                response?.result?.redirectUrl,
+                response?.result?.authorisationUrl,
+                response?.result?.authorizationUrl,
+                response?.actionUrl,
+                response?.redirectUrl,
+                response?.authorisationUrl,
+                response?.authorizationUrl
+            ];
+
+            for (const c of candidates) {
+                const sanitized = sanitizeRedirectUrl(c);
+                if (sanitized) return sanitized;
+            }
+
+            return null;
+        }
+
+        function generateCreateCredentialTemplate(config) {
+            const flowParameters = {
+                billingInfo: billingInfo,
+                flowId: config.flowId || '',
+                flowRevision: 1,
+                scopeId: config.scopeId || '',
+                namedParameters: {
+                    methodId: config.methodId || ''
+                }
+            };
+
+            return {
+                Parameters: flowParameters,
+                Request: {
+                    redirectUrl: getReturnUrl()
+                }
+            };
+        }
+
+        function getRedirectParameters() {
+            const params = new URLSearchParams(window.location.search);
+            const obj = {};
+            for (const [key, value] of params.entries()) {
+                if (obj[key] === undefined) {
+                    obj[key] = value;
+                } else if (Array.isArray(obj[key])) {
+                    obj[key].push(value);
+                } else {
+                    obj[key] = [obj[key], value];
+                }
+            }
+            return obj;
+        }
+
+        function hasRedirectQuery() {
+            return window.location.search && window.location.search.length > 1;
+        }
+
+        function generateCompleteRedirectTemplate(config) {
+            const credentialId = readCredentialIdFromStorage();
+            const flowParameters = {
+                billingInfo,
+                flowId: config.flowId || '',
+                flowRevision: 1,
+                scopeId: config.scopeId || '',
+                namedParameters: {
+                    methodId: config.methodId || '',
+                    ...(credentialId ? { credentialId } : {})
+                }
+            };
+
+            return {
+                Parameters: flowParameters,
+                Request: {
+                    redirectUrl: getReturnUrl(),
+                    redirectParameters: getRedirectParameters()
+                }
+            };
+        }
+
+        async function postJson(url, headers, body) {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(body)
+            });
+
+            const rawText = await res.text();
+            let parsed = null;
+            if (rawText) {
+                try {
+                    parsed = JSON.parse(rawText);
+                } catch {
+                    parsed = { raw: rawText };
+                }
+            }
+
+            if (!res.ok) {
+                const message = `Error: HTTP ${res.status} from ${url}`;
+                const errorPayload = parsed ?? { raw: rawText };
+                const err = new Error(message);
+                err.payload = errorPayload;
+                throw err;
+            }
+
+            return parsed;
+        }
+
+        async function createCredential() {
+            const config = readConfigFromInputs();
+            writeConfigToStorage(config);
+
+            const endpoint = buildEndpoint(
+                config.serverBase,
+                config.apiPrefix,
+                `credentials/${config.methodId}/${config.flowId}/${encodeURIComponent(config.scopeId)}/`
+            );
+
+            const parsedBody = tryParseJson(document.getElementById('createCredentialBody').value);
+            if (!parsedBody.ok) {
+                throw new Error(`Error: Invalid JSON for CreateCredential body (${parsedBody.error.message})`);
+            }
+
+            const headers = buildAuthHeaders(config);
+
+            log('CreateCredential request', { url: endpoint, headers: { ...headers, Authorization: headers.Authorization ? 'Bearer ***' : undefined }, body: parsedBody.value });
+
+            const response = await postJson(endpoint, headers, parsedBody.value);
+            log('CreateCredential response', response);
+
+            const credentialId = response?.credential?.info?.id;
+            if (credentialId) {
+                writeCredentialIdToStorage(credentialId);
+            }
+
+            const redirectUrl = extractRedirectUrlFromResponse(response);
+            if (redirectUrl) {
+                log('Redirecting to provider URL', { redirectUrl });
+                const w = window.open(redirectUrl, '_blank', 'noopener,noreferrer');
+                if (!w) {
+                    log('Error: Popup blocked; redirecting in current tab');
+                    window.location.assign(redirectUrl);
+                }
+                return;
+            }
+
+            log('No redirect URL found in response; staying on page');
+        }
+
+        async function completeRedirectFlow() {
+            const config = readConfigFromInputs();
+
+            const parsedBody = tryParseJson(document.getElementById('completeRedirectBody').value);
+            if (!parsedBody.ok) {
+                throw new Error(`Error: Invalid JSON for CompleteRedirectFlow body (${parsedBody.error.message})`);
+            }
+
+            const storedCredentialId = readCredentialIdFromStorage();
+            if (storedCredentialId) {
+                parsedBody.value.Parameters = parsedBody.value.Parameters || {};
+                parsedBody.value.Parameters.namedParameters = parsedBody.value.Parameters.namedParameters || {};
+                if (!parsedBody.value.Parameters.namedParameters.credentialId) {
+                    parsedBody.value.Parameters.namedParameters.credentialId = storedCredentialId;
+                }
+            }
+
+            const endpoint = buildEndpoint(
+                config.serverBase,
+                config.apiPrefix,
+                `credentials/${config.methodId}/${storedCredentialId}/completeRedirectFlow`
+            );
+
+            const headers = buildAuthHeaders(config);
+            log('CompleteRedirectFlow request', { url: endpoint, headers: { ...headers, Authorization: headers.Authorization ? 'Bearer ***' : undefined }, body: parsedBody.value });
+
+            const response = await postJson(endpoint, headers, parsedBody.value);
+            log('CompleteRedirectFlow response', response);
+        }
+
+        function setModePill(text) {
+            const el = document.getElementById('mode');
+            el.textContent = text;
+        }
+
+        function showRedirectSection() {
+            document.getElementById('redirectSection').classList.remove('hidden');
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const fromStorage = readConfigFromStorage();
+            applyConfigToInputs(fromStorage);
+
+            if (!document.getElementById('serverBase').value) {
+                document.getElementById('serverBase').value = 'http://localhost:25713';
+            }
+
+            if (!document.getElementById('apiPrefix').value) {
+                document.getElementById('apiPrefix').value = '/gocardless/v1.0';
+            }
+
+            const initialConfig = readConfigFromInputs();
+            document.getElementById('createCredentialBody').value = JSON.stringify(generateCreateCredentialTemplate(initialConfig), null, 2);
+
+            document.getElementById('btnGenerateCreate').addEventListener('click', () => {
+                const cfg = readConfigFromInputs();
+                document.getElementById('createCredentialBody').value = JSON.stringify(generateCreateCredentialTemplate(cfg), null, 2);
+            });
+
+            document.getElementById('btnCreateCredential').addEventListener('click', async () => {
+                try {
+                    await createCredential();
+                } catch (e) {
+                    log(e.message || 'Error: CreateCredential failed', e.payload ?? e);
+                }
+            });
+
+            document.getElementById('btnGenerateComplete').addEventListener('click', () => {
+                const cfg = readConfigFromInputs();
+                document.getElementById('completeRedirectBody').value = JSON.stringify(generateCompleteRedirectTemplate(cfg), null, 2);
+            });
+
+            document.getElementById('btnCompleteRedirect').addEventListener('click', async () => {
+                try {
+                    await completeRedirectFlow();
+                } catch (e) {
+                    log(e.message || 'Error: CompleteRedirectFlow failed', e.payload ?? e);
+                }
+            });
+
+            if (hasRedirectQuery()) {
+                setModePill('Redirect Return');
+                showRedirectSection();
+
+                const cfg = readConfigFromInputs();
+                document.getElementById('completeRedirectBody').value = JSON.stringify(generateCompleteRedirectTemplate(cfg), null, 2);
+
+                try {
+                    await completeRedirectFlow();
+                } catch (e) {
+                    log(e.message || 'Error: Auto CompleteRedirectFlow failed', e.payload ?? e);
+                }
+            } else {
+                setModePill('Start');
+            }
+        });
+    </script>
+</body>
+
+</html>
