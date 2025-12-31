@@ -8,47 +8,213 @@
         body {
             font-family: Arial, sans-serif;
             text-align: center;
-            margin-top: 100px;
+            margin-top: 20px;
+            padding: 20px;
+        }
+
+        .config-section {
+            text-align: left;
+            max-width: 800px;
+            margin: 0 auto 30px auto;
+            border: 1px solid #ccc;
+            padding: 20px;
+            background: #f9f9f9;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+            font-weight: bold;
         }
 
         #status {
             font-size: 1.2rem;
             margin-top: 20px;
+            font-weight: bold;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 20px;
+        }
+
+        button:hover {
+            background: #0056b3;
         }
     </style>
 </head>
 
 <body>
+    <div class="config-section">
+        <h3>Configuration</h3>
+        <label>Server Base</label>
+        <input id="serverBase" type="url" value="http://localhost:25713" />
+        <label>API Prefix</label>
+        <input id="apiPrefix" type="text" value="/worldline/v1.0" />
+        <label>Subscription ID</label>
+        <input id="subscriptionId" type="text" value="00000006-0000-0000-0000-000000000000" />
+        <label>Bearer Token</label>
+        <input id="bearerToken" type="text" placeholder="Bearer ..." />
+        <!-- Hidden input to maintain config shape compatibility with worldline.html -->
+        <input id="methodId" type="hidden" />
+    </div>
+
     <h1>Processing 3D Secure Payment...</h1>
     <div id="status">Please wait while we confirm your payment.</div>
+    <button onclick="confirmPayment()">Retry Confirmation</button>
 
-    <input id="bearerToken"></div>
     <script>
-        const bearerToken = document.getElementById('bearerToken').value;
+        const sessionKeys = {
+            config: 'worldline.config.v1'
+        };
+
+        const bearerTokenEl = document.getElementById('bearerToken');
+
+        // -----------------------------
+        // Helper Functions (Shared)
+        // -----------------------------
+        function normalizeBaseUrl(value) {
+            return (value || '').trim().replace(/\/+$/g, '');
+        }
+
+        function normalizePrefix(value) {
+            const v = (value || '').trim();
+            if (!v) return '';
+            if (v === '/') return '';
+            return `/${v.replace(/^\/+/, '').replace(/\/+$/, '')}`;
+        }
+
+        function buildEndpoint(path) {
+            const serverBase = normalizeBaseUrl(document.getElementById('serverBase').value);
+            const apiPrefix = normalizePrefix(document.getElementById('apiPrefix').value);
+            const p = `/${(path || '').replace(/^\/+/, '')}`;
+            if (!serverBase) {
+                throw new Error('Error: Server Base URL is required');
+            }
+            return `${serverBase}${apiPrefix}${p}`;
+        }
+
+        function buildHeaders(ignoreValidationWarnings) {
+            const headers = {
+                'accept': 'application/json',
+                'Content-Type': 'application/json',
+                'N3O-Ignore-Validation-Warnings': ignoreValidationWarnings ? 'true' : 'false'
+            };
+
+            const bearer = (bearerTokenEl.value || '').trim();
+            if (bearer) {
+                headers['Authorization'] = bearer;
+            }
+
+            const subscriptionId = (document.getElementById('subscriptionId').value || '').trim();
+            if (subscriptionId) {
+                headers['N3O-Subscription-Id'] = subscriptionId;
+            }
+
+            return headers;
+        }
+
+        function readConfigFromInputs() {
+            return {
+                serverBase: document.getElementById('serverBase').value,
+                apiPrefix: document.getElementById('apiPrefix').value,
+                methodId: document.getElementById('methodId').value,
+                subscriptionId: document.getElementById('subscriptionId').value,
+                bearerToken: bearerTokenEl.value
+            };
+        }
+
+        function writeConfigToSession(config) {
+            sessionStorage.setItem(sessionKeys.config, JSON.stringify(config));
+        }
+
+        function readConfigFromSession() {
+            try {
+                const raw = sessionStorage.getItem(sessionKeys.config);
+                if (!raw) return null;
+                return JSON.parse(raw);
+            } catch {
+                return null;
+            }
+        }
+
+        function applyConfigToInputs(config) {
+            if (!config) return;
+            const assign = (id, value) => {
+                if (value === undefined || value === null) return;
+                const el = document.getElementById(id);
+                if (el && !el.value) el.value = value;
+            };
+
+            assign('serverBase', config.serverBase);
+            assign('apiPrefix', config.apiPrefix);
+            assign('methodId', config.methodId);
+            assign('subscriptionId', config.subscriptionId);
+            assign('bearerToken', config.bearerToken);
+        }
+
+        function debounce(fn, ms) {
+            let timer;
+            return (...args) => {
+                if (timer) clearTimeout(timer);
+                timer = setTimeout(() => fn(...args), ms);
+            };
+        }
+
+        // -----------------------------
+        // Init Logic
+        // -----------------------------
+
+        // Load config from session
+        const savedConfig = readConfigFromSession();
+        if (savedConfig) {
+            applyConfigToInputs(savedConfig);
+        }
+
+        // Save config on change
+        const saveConfigDebounced = debounce(() => {
+            writeConfigToSession(readConfigFromInputs());
+        }, 500);
+
+        ['serverBase', 'apiPrefix', 'subscriptionId', 'bearerToken'].forEach(id => {
+            document.getElementById(id).addEventListener('input', saveConfigDebounced);
+        });
+
+        // -----------------------------
+        // Main Logic
+        // -----------------------------
 
         async function confirmPayment() {
+            const statusEl = document.getElementById("status");
             const params = new URLSearchParams(window.location.search);
-
             const ref = params.get("REF");
 
             if (!ref) {
-                document.getElementById("status").innerText = "Missing required parameters.";
+                statusEl.innerText = "Missing required parameter: REF";
                 return;
             }
 
-            try {
+            statusEl.innerText = "Confirming payment...";
 
-                const url = `http://localhost:25713/worldline/v1.0/payments/find`;
+            try {
+                const url = buildEndpoint('/payments/find');
+                const headers = buildHeaders();
 
                 const response = await fetch(url, {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        'Authorization': bearerToken,
-                        'accept': 'application/json',
-                        'N3O-Ignore-Validation-Warnings': 'false',
-                        'N3O-Subscription-Id': '00000006-0000-0000-0000-000000000000',
-                    },
+                    headers: headers,
                     body: JSON.stringify({ "worldlinePaymentId": ref })
                 });
 
@@ -58,21 +224,25 @@
 
                 const result = await response.json();
 
-                if (result.items[0].status === "paid") {
-                    document.getElementById("status").innerText = `Payment successful! Thank you. ${JSON.stringify(result)}`;
+                if (result && result.items && result.items.length > 0 && result.items[0].status === "paid") {
+                    statusEl.innerText = `Payment successful! Thank you. ${JSON.stringify(result)}`;
                 } else {
-                    document.getElementById("status").innerText = `Payment failed: ${result}`;
+                    statusEl.innerText = `Payment failed or status unknown: ${JSON.stringify(result)}`;
                 }
 
             } catch (error) {
-                document.getElementById("status").innerText = "Error confirming payment. Please try again.";
-
-                setTimeout(() => confirmPayment(), 1000); 
+                statusEl.innerText = `Error: ${error.message}`;
+                // Removed infinite retry loop
             }
         }
 
         // Trigger confirmation when page loads
-        confirmPayment();
+        if (document.getElementById('bearerToken').value) {
+             confirmPayment();
+        } else {
+             document.getElementById("status").innerText = "Please check configuration (Bearer Token) and click Retry.";
+        }
+       
     </script>
 </body>
 

@@ -202,21 +202,21 @@
 
                 const apiUrl = `${normalizeBaseUrl(server)}${normalizePrefix(apiPrefix)}/${methodId}/validatemerchant`;
                 const data = {
-    parameters: {
-        flowRevision: 1,
-        billingInfo: {},
-        flowId: "aba3460d-cdab-45ad-8090-3bfee160d30c",
-        scopeId: "",
-        namedParameters: {
-            
-        }
-    },
-    request: {
-        url: event.validationURL,
-        initiativeContext: "muslimhands.fr",
-        initiative: "web"
-    }
-};
+                    parameters: {
+                        flowRevision: 1,
+                        billingInfo: {},
+                        flowId: "aba3460d-cdab-45ad-8090-3bfee160d30c",
+                        scopeId: "",
+                        namedParameters: {
+
+                        }
+                    },
+                    request: {
+                        url: event.validationURL,
+                        initiativeContext: "muslimhands.fr",
+                        initiative: "web"
+                    }
+                };
 
                 const response = await fetch(apiUrl, {
                     method: "POST",

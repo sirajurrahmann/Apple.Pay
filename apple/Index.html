@@ -50,16 +50,30 @@
 </head>
 
 <body>
-
-    <h2>Apple Pay – Static Page (Debug Enabled)</h2>
-    <input id="hostServer" type="url" />
-    <input id="subscriptionId" type="text" placeholder="N3O-Subscription-Id" />
-    <input id="bearerToken" type="text" placeholder="Authorization (Bearer ...)" />
-
-    <button id="applePayBtn">Buy with Apple Pay</button>
-
     <h3>Log Output</h3>
     <div id="log"></div>
+    <h2>Apple Pay – Static Page (Debug Enabled)</h2>
+    <input id="hostServer" type="url" placeholder="HOST URL" value="https://beta.n3o.cloud/eu1/api/checkout/"/>
+    <input id="apiPrefix" type="text" placeholder="API Prefix" value="worldline/v1.0/" />
+    <input id="methodId" type="text" placeholder="Method ID" value="a09cb06c-4fc0-4384-b14c-450e3abfc1c9" />
+    <input id="flowId" type="text" placeholder="Flow ID" />
+    <input id="scopeId" type="text" placeholder="Scope ID" />
+    <input id="merchantId" type="text" placeholder="Merchant ID" value="merchant.cloud.n3o.testapp" />
+    <input id="subscriptionId" type="text" placeholder="N3O-Subscription-Id" />
+    <input id="bearerToken" type="text" placeholder="Authorization (Bearer ...)" />
+    <style>
+        apple-pay-button {
+            --apple-pay-button-width: 150px;
+            --apple-pay-button-height: 30px;
+            --apple-pay-button-border-radius: 3px;
+            --apple-pay-button-padding: 0px 0px;
+            --apple-pay-button-box-sizing: border-box;
+        }
+    </style>
+    <apple-pay-button id="applePayBtn" buttonstyle="black" type="plain" locale="en-US">
+
+    </apple-pay-button>
+
 
     <div id="tokenContainer">
         <h3>Apple Pay Payment JSON</h3>
@@ -149,7 +163,7 @@
 
             const paymentRequest = {
                 supportedMethods: "https://apple.com/apple-pay",
-                merchantId: "merchant.cloud.n3o.testapp",
+                merchantId: document.getElementById('merchantId').value,
                 countryCode: "US",
                 currencyCode: "USD",
                 supportedNetworks: ["visa", "masterCard", "amex"],
@@ -177,13 +191,19 @@
                 const serverUrl = params.get("serverUrl");
 
                 var server = serverUrl ?? document.getElementById("hostServer").value;
+                const apiPrefix = document.getElementById("apiPrefix").value;
+                const methodId = document.getElementById("methodId").value;
+                const flowId = document.getElementById("flowId").value;
+                const scopeId = document.getElementById("scopeId").value;
                 console.log(server);
-                const apiUrl = server + "/applepay/validate-merchant";
+                const apiUrl = server + apiPrefix + methodId + "/" + flowId + "/" + scopeId + "/validatemerchant";
                 const response = await fetch(apiUrl, {
                     method: "POST",
                     headers: buildHeaders(),
                     body: JSON.stringify({
-                        validationUrl: event.validationURL
+                        url: event.validationURL,
+                        initiativeContext: window.location.origin,
+                        initiative: "web"
                     })
                 }
                 );
@@ -223,9 +243,13 @@
                 const serverUrl = params.get("serverUrl");
 
                 var server = serverUrl ?? document.getElementById("hostServer").value;
+                const apiPrefix = document.getElementById("apiPrefix").value;
+                const methodId = document.getElementById("methodId").value;
+                const flowId = document.getElementById("flowId").value;
+                const scopeId = document.getElementById("scopeId").value;
                 console.log(server);
 
-                const apiUrl = server + "/applepay/process-payment";
+                const apiUrl = server + apiPrefix + methodId + "/" + flowId + "/" + scopeId + "/process-payment";
                 const response = await fetch(apiUrl, {
                     method: "POST",
                     headers: buildHeaders(),
