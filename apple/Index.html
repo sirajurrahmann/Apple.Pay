@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Apple Pay Static Debug Page</title>
+    <script crossorigin src="https://applepay.cdn-apple.com/jsapi/1.latest/apple-pay-sdk.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -147,7 +148,8 @@
             log("Apple Pay button clicked");
 
             const paymentRequest = {
-                merchantId: "merchant.cloud.n3o.testapp",
+                supportedMethods: "https://apple.com/apple-pay",
+                 merchantId: "merchant.cloud.n3o.testapp",
                 countryCode: "US",
                 currencyCode: "USD",
                 supportedNetworks: ["visa", "masterCard", "amex"],

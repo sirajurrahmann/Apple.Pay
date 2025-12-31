@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Apple.Pay Test Pages</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            margin: 0 0 10px 0;
+        }
+
+        h2 {
+            margin-top: 22px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 14px;
+            background: #fff;
+        }
+
+        .card h3 {
+            margin: 0 0 8px 0;
+            font-size: 16px;
+        }
+
+        a {
+            color: #0b5ed7;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        ul {
+            margin: 0;
+            padding-left: 18px;
+        }
+
+        li {
+            margin: 6px 0;
+        }
+
+        .muted {
+            color: #555;
+            font-size: 13px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Apple.Pay Test Pages</h1>
+    <div class="muted">Static entry points for local testing.</div>
+
+    <h2>Folders</h2>
+    <div class="grid">
+        <div class="card">
+            <h3>GoCardless</h3>
+            <ul>
+                <li><a href="./Gocardless/gocardless.html">Redirect Flow</a></li>
+            </ul>
+        </div>
+        <div class="card">
+            <h3>Worldline</h3>
+            <ul>
+                <li><a href="./worldline/worldline.html">Tokenization + Flow</a></li>
+                <li><a href="./worldline/worldline3ds.html">3DS Return</a></li>
+            </ul>
+        </div>
+        <div class="card">
+            <h3>Apple</h3>
+            <ul>
+                <li><a href="./apple/Index.html">Apple Pay (validate + process)</a></li>
+            </ul>
+        </div>
+        <div class="card">
+            <h3>Root Pages</h3>
+            <ul>
+                <li><a href="./apple-pay-test.html">Apple Pay Test</a></li>
+                <li><a href="./apple-pay-test-1.html">Apple Pay Test 1</a></li>
+            </ul>
+        </div>
+    </div>
+</body>
+
+</html>
