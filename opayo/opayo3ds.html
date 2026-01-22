@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Opayo 3D Secure Confirmation</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 20px; padding: 20px; }
+        .config-section { text-align: left; max-width: 800px; margin: 0 auto 30px auto; border: 1px solid #ccc; padding: 20px; background: #f9f9f9; }
+        input { width: 100%; padding: 10px; margin-bottom: 10px; box-sizing: border-box; }
+        label { display: block; margin-top: 10px; font-weight: bold; }
+        #status { font-size: 1.2rem; margin-top: 20px; font-weight: bold; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; font-size: 1rem; margin-top: 20px; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <div class="config-section" id="config-section"></div>
+
+    <h1>Processing Opayo 3D Secure Payment...</h1>
+    <div id="status">Please wait while we confirm your payment.</div>
+    <button onclick="confirmPayment()">Retry Confirmation</button>
+
+    <script src="../js/common.js"></script>
+    <script>
+        renderGenericFields('config-section', {
+            serverBase: 'http://localhost:25713',
+            apiPrefix: '/opayo/v1.0',
+            methodId: '', 
+            subscriptionId: '00000006-0000-0000-0000-000000000000'
+        });
+
+        const sessionKey = 'opayo.config.v1';
+        setupConfigPersistence(sessionKey);
+
+        async function confirmPayment() {
+            const statusEl = document.getElementById("status");
+            const params = new URLSearchParams(window.location.search);
+            const ref = params.get("REF");
+            
+            if (!ref) {
+                statusEl.innerText = "Missing required parameter: REF (or equivalent Opayo identifier)";
+                return;
+            }
+
+            statusEl.innerText = "Confirming payment...";
+
+            try {
+                const url = buildEndpoint('/payments/find');
+                const headers = buildHeaders();
+                const body = { "opayoPaymentId": ref };
+
+                const response = await fetch(url, {
+                    method: "POST",
+                    headers: headers,
+                    body: JSON.stringify(body)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                if (result && result.items && result.items.length > 0 && result.items[0].status === "paid") {
+                    statusEl.innerText = `Payment successful! Thank you. ${JSON.stringify(result)}`;
+                } else {
+                    statusEl.innerText = `Payment failed or status unknown: ${JSON.stringify(result)}`;
+                }
+
+            } catch (error) {
+                statusEl.innerText = `Error: ${error.message}`;
+            }
+        }
+
+        const bearerToken = document.getElementById('bearerToken').value;
+        if (bearerToken) {
+             confirmPayment();
+        } else {
+             document.getElementById("status").innerText = "Please check configuration (Bearer Token) and click Retry.";
+        }
+    </script>
+</body>
+</html>
