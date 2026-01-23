@@ -60,12 +60,24 @@
     <div id="config-section"></div>
 
     <br />
+    <div>
+        <div id="threeDSecureIframeDiv" hidden>
+            <iframe name="threeDSecureIframe" width="500px" height="300px"></iframe>
 
-    <form id="checkout-form" action="/checkout" method="post">
-        <div id="hosted-payments-container">
+            <form id="opayo-threeD-secure-iframe-form" method="post" target="threeDSecureIframe">
+                <input type="hidden" name="creq" />
+                <input type="hidden" name="threeDSSessionData" />
+                <input type="hidden" name="acsTransID" />
+            </form>
         </div>
-        <button id="submit-tokenization">Submit Payment</button>
-    </form>
+
+        <form id="checkout-form" action="/checkout" method="post">
+            <div id="hosted-payments-container">
+            </div>
+            <button id="submit-tokenization">Submit Payment</button>
+        </form>
+    </div>
+
 
     <h3>Log Output</h3>
     <div id="log"></div>
@@ -83,6 +95,20 @@
         document.addEventListener("DOMContentLoaded", () => {
             initTokenization();
         });
+
+        function showThreeDSecureIframe(opayoTransactionId, threeDSecureV2) {
+            document.getElementById('hosted-payments-container').hidden = true;
+            document.getElementById('threeDSecureIframeDiv').hidden = false;
+
+            let form = document.getElementById('opayo-threeD-secure-iframe-form');
+            form.action = threeDSecureV2.acsUrl;
+
+            form[0].value = threeDSecureV2.cReq;
+            form[1].value = opayoTransactionId;
+            form[2].value = threeDSecureV2.acsTransId;
+
+            form.submit();
+        }
 
         async function initTokenization() {
             const methodId = getMethodId();
@@ -120,14 +146,20 @@
                                             identifier: tokenisationResult.cardIdentifier
                                         },
                                         threeDSecure: {
-                                            callbackUrl: 'http://localhost:3000/worldline3ds/',
                                             ...browserInfo
-                                        }
+                                        },
+                                        redirectUrl: 'http://100.116.232.30:3000/opayo?3ds=true',
+
                                     };
                                     log('Payment Data', paymentData);
                                 });
 
+
                             log('Payment Response', res);
+
+                            if (res.result.requireAction) {
+                                showThreeDSecureIframe(res.result.opayoTransactionId, res.result.threeDSecureV2);
+                            }
                         } else {
                             console.error(tokenisationResult.error.errorMessage);
                         }
