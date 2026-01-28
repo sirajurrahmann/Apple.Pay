@@ -11,16 +11,17 @@
             padding: 1rem;
         }
 
-/*
-
-        input {
-*/
-
         input {
             width: 100%;
             padding: 10px;
             box-sizing: border-box;
             margin-bottom: 10px;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+            font-weight: bold;
         }
 
         #hosted-token-frame {
@@ -35,19 +36,14 @@
             background: #007bff;
             color: white;
             border: none;
+            font-weight: bold;
+            transition: opacity 0.3s;
         }
     </style>
     <style>
         body {
             font-family: Arial, sans-serif;
             padding: 20px;
-        }
-
-        #applePayBtn {
-            display: none;
-            padding: 12px 20px;
-            font-size: 16px;
-            margin-bottom: 20px;
         }
 
         #log {
@@ -83,12 +79,7 @@
 
     <h1>Worldline Tokenization Checkout</h1>
 
-    <input id="serverBase" type="url" value="http://localhost:25713" />
-    <input id="apiPrefix" type="text" value="/worldline/v1.0" />
-    <input id="methodId" type="text" value="264cd00d-3d90-4eaa-9bd5-8cc0b7e5fbd6" />
-    <input id="subscriptionId" type="text" value="00000006-0000-0000-0000-000000000000" />
-    <input id="bearerToken" type="text" placeholder="Authorization (Bearer ...)" />
-
+    <div id="config-section"></div>
 
     <br />
     <div id="hosted-token-frame-three-d-secure" hidden>
@@ -100,359 +91,112 @@
     <h3>Log Output</h3>
     <div id="log"></div>
 
+    <script src="../js/common.js"></script>
     <script>
-        const bearerTokenEl = document.getElementById('bearerToken');
-        if (!bearerTokenEl.value) bearerTokenEl.value = bearerToken;
+        // 1. Render Configuration Fields
+        renderGenericFields('config-section', {
+            serverBase: 'http://localhost:25713',
+            apiPrefix: '/worldline/v1.0',
+            methodId: '264cd00d-3d90-4eaa-9bd5-8cc0b7e5fbd6',
+            subscriptionId: '00000006-0000-0000-0000-000000000000'
+        });
+
+        // 2. Setup Persistence
+        const sessionKey = 'worldline.config.v1';
+        setupConfigPersistence(sessionKey);
+
+        // 3. Main Logic
         let tokenizer;
-        const sessionKeys = {
-            config: 'worldline.config.v1'
-        };
-        function log(message, data) {
-            const logBox = document.getElementById("log");
-            const timestamp = new Date().toISOString();
-            let text = `[${timestamp}] ${message}`;
-
-            if (data) {
-                console.log(message, data);
-                text += "\n" + JSON.stringify(data, null, 2);
-            } else {
-                console.log(message);
-            }
-
-            logBox.textContent += text + "\n\n";
-            logBox.scrollTop = logBox.scrollHeight;
-        }
-
-        function normalizeBaseUrl(value) {
-            return (value || '').trim().replace(/\/+$/g, '');
-        }
-
-        function normalizePrefix(value) {
-            const v = (value || '').trim();
-            if (!v) return '';
-            if (v === '/') return '';
-            return `/${v.replace(/^\/+/, '').replace(/\/+$/, '')}`;
-        }
-
-        function buildEndpoint(path) {
-            const serverBase = normalizeBaseUrl(document.getElementById('serverBase').value);
-            const apiPrefix = normalizePrefix(document.getElementById('apiPrefix').value);
-            const p = `/${(path || '').replace(/^\/+/, '')}`;
-            if (!serverBase) {
-                throw new Error('Error: Server Base URL is required');
-            }
-            return `${serverBase}${apiPrefix}${p}`;
-        }
-
-        function buildHeaders(ignoreValidationWarnings) {
-            const headers = {
-                'accept': 'application/json',
-                'Content-Type': 'application/json',
-                'N3O-Ignore-Validation-Warnings': ignoreValidationWarnings ? 'true' : 'false'
-            };
-
-            const bearer = (bearerTokenEl.value || '').trim();
-            if (bearer) {
-                headers['Authorization'] = bearer;
-            }
-
-            const subscriptionId = (document.getElementById('subscriptionId').value || '').trim();
-            if (subscriptionId) {
-                headers['N3O-Subscription-Id'] = subscriptionId;
-            }
-
-            return headers;
-        }
-
-        function getMethodId() {
-            const methodId = (document.getElementById('methodId').value || '').trim();
-            if (!methodId) {
-                throw new Error('Error: Method Id is required');
-            }
-            return methodId;
-        }
-
-        function debounce(fn, ms) {
-            let timer;
-            return (...args) => {
-                if (timer) clearTimeout(timer);
-                timer = setTimeout(() => fn(...args), ms);
-            };
-        }
-
-        function readConfigFromInputs() {
-            return {
-                serverBase: document.getElementById('serverBase').value,
-                apiPrefix: document.getElementById('apiPrefix').value,
-                methodId: document.getElementById('methodId').value,
-                subscriptionId: document.getElementById('subscriptionId').value,
-                bearerToken: bearerTokenEl.value
-            };
-        }
-
-        function writeConfigToSession(config) {
-            sessionStorage.setItem(sessionKeys.config, JSON.stringify(config));
-        }
-
-        function readConfigFromSession() {
-            try {
-                const raw = sessionStorage.getItem(sessionKeys.config);
-                if (!raw) return null;
-                return JSON.parse(raw);
-            } catch {
-                return null;
-            }
-        }
-
-        function applyConfigToInputs(config) {
-            if (!config) return;
-            const assign = (id, value) => {
-                if (value === undefined || value === null) return;
-                const el = document.getElementById(id);
-                if (el && !el.value) el.value = value;
-            };
-
-            assign('serverBase', config.serverBase);
-            assign('apiPrefix', config.apiPrefix);
-            assign('methodId', config.methodId);
-            assign('subscriptionId', config.subscriptionId);
-            assign('bearerToken', config.bearerToken);
-        }
-
-        function getRedirectUrl() {
-            return `${window.location.origin}/worldline/worldline3ds.html`;
-        }
-        function copyJson() {
-            const textarea = document.getElementById("paymentJson");
-            textarea.select();
-            document.execCommand("copy");
-            alert("Apple Pay JSON copied to clipboard");
-        }
-        const account = {
-            type: 'individual',
-            firstName: 'Siraj',
-            lastName: 'ur Rehman',
-            email: 'testimpoort@yopmail.com',
-            address: {
-                multiLineText: '234\n440000\nPakistan',
-                singleLineText: '234, 440000, Pakistan',
-                isInternational: true,
-                line1: '234',
-                postalCode: '440000',
-                country: 'PK'
-            },
-            id: '5b65a92f-42d9-43d7-b842-f60d81b5ce19',
-            reference: {
-                type: 'AC',
-                number: 1000206,
-                text: 'AC1000206'
-            },
-            name: 'Mr Siraj ur Rehman',
-            initials: 'Su',
-            color: '#FFA940'
-        };
-        function loadJS(FILE_URL, async = true, onLoadAction = () => { }) {
-            let scriptEle = document.createElement("script");
-
-            scriptEle.setAttribute("src", FILE_URL);
-            scriptEle.setAttribute("type", "text/javascript");
-            scriptEle.setAttribute("async", async);
-            document.body.appendChild(scriptEle);
-
-            scriptEle.addEventListener("load", () => {
-                onLoadAction();
-            });
-
-            scriptEle.addEventListener("error", (ev) => {
-                console.log("Error on loading file", ev);
-            });
-        }
-
+        
         async function initTokenization() {
+            setLoading('submit-tokenization', true, 'Initializing...');
             document.getElementById('hosted-token-frame').innerHTML = '';
             const methodId = getMethodId();
-            const res = await fetch(buildEndpoint(`${methodId}/hostedtokenizationsession`), {
-                method: 'POST',
-                headers: buildHeaders(false),
-                // body: '{\n  "account": {\n    "type": "individual",\n    "firstName": "Siraj",\n    "lastName": "ur Rehman",\n    "email": "testimpoort@yopmail.com",\n    "address": {\n      "multiLineText": "234\\n440000\\nPakistan",\n      "singleLineText": "234, 440000, Pakistan",\n      "isInternational": true,\n      "line1": "234",\n      "postalCode": "440000",\n      "country": "PK"\n    },\n    "id": "5b65a92f-42d9-43d7-b842-f60d81b5ce19",\n    "reference": {\n      "type": "AC",\n      "number": 1000206,\n      "text": "AC1000206"\n    },\n    "name": "Mr Siraj ur Rehman",\n    "initials": "Su",\n    "color": "#FFA940"\n  }\n}',
-                body: JSON.stringify({ 'account': account })
-            });
+            try {
+                const res = await fetch(buildEndpoint(`${methodId}/hostedtokenizationsession`), {
+                    method: 'POST',
+                    headers: buildHeaders(false),
+                    body: JSON.stringify({ 'account': account })
+                });
 
-            const { hostedTokenizationId, hostedTokenizationUrl } = await res.json();
-            log("Intialized with " + hostedTokenizationId);
-            async function initializeTokenizer(hostedTokenizationUrl) {
-                try {
-                    tokenizer = new Tokenizer(hostedTokenizationUrl, 'hosted-token-frame', { hideCardholderName: false });
-
-                    await tokenizer.initialize();
-                } catch (error) {
-                    console.error(error);
+                if (!res.ok) {
+                    log("Error initializing session: " + res.statusText);
+                    setLoading('submit-tokenization', false);
+                    return;
                 }
+
+                const { hostedTokenizationId, hostedTokenizationUrl } = await res.json();
+                log("Intialized with " + hostedTokenizationId);
+                
+                async function initializeTokenizer(hostedTokenizationUrl) {
+                    try {
+                        tokenizer = new Tokenizer(hostedTokenizationUrl, 'hosted-token-frame', { hideCardholderName: false });
+                        await tokenizer.initialize();
+                        setLoading('submit-tokenization', false);
+                    } catch (error) {
+                        console.error(error);
+                        log("Error initializing tokenizer: " + error.message);
+                        setLoading('submit-tokenization', false);
+                    }
+                }
+
+                initializeTokenizer(hostedTokenizationUrl);
+            } catch (err) {
+                log("Error: " + err.message);
+                setLoading('submit-tokenization', false);
             }
 
-            initializeTokenizer(hostedTokenizationUrl);
-
-            // loadJS(`${hostedTokenizationUrl}/hostedtokenization/js/client/tokenizer.min.js`, true, () => initializeTokenizer(data.tokenizationUrl))
-
-            // 3) On submit, call built-in function
-            document.getElementById('submit-tokenization').addEventListener('click', () => {
+            // On submit, call built-in function
+            const submitBtn = document.getElementById('submit-tokenization');
+            // Remove old listeners by cloning
+            const newBtn = submitBtn.cloneNode(true);
+            submitBtn.parentNode.replaceChild(newBtn, submitBtn);
+            
+            newBtn.addEventListener('click', () => {
+                if (!tokenizer) {
+                    log("Tokenizer not initialized");
+                    return;
+                }
+                
+                setLoading('submit-tokenization', true, 'Processing Payment...');
+                
                 tokenizer.submitTokenization({ storePermanently: false })
                     .then(async result => {
                         console.log(result.hostedTokenizationId);
                         await processFlowCredentialRequest(result.hostedTokenizationId);
+                    })
+                    .catch(err => {
+                        log("Tokenization failed: " + err.message);
+                        setLoading('submit-tokenization', false);
                     });
             });
         }
 
+        // Re-init when bearer token changes
+        const bearerTokenEl = document.getElementById('bearerToken');
+        if(bearerTokenEl) {
+             bearerTokenEl.addEventListener('input', debounce(() => {
+                 initTokenization();
+            }, 1000));
+        }
+
+        // Initial load
         initTokenization();
-        const browserInfo = {
-            userAgentHeader: navigator.userAgent,
-            acceptHeader: '*/*',
-            formTargetId: 'secure3dIFrame',
-            browserColorDepthBits: screen.colorDepth?.toString() || '',
-            browserJavaEnabled: navigator.javaEnabled().toString(),
-            browserLanguage: navigator.language || '',
-            browserScreenHeight: screen.height?.toString() || '',
-            browserScreenWidth: screen.width?.toString() || '',
-            browserUtcOffset: new Date().getTimezoneOffset().toString()
-        };
-
-        const billingInfo = {
-            name: {
-                firstName: 'siraj',
-                lastName: 'ur rahman'
-            },
-            address: {
-                multiLineText: '234\n440000\nPakistan',
-                singleLineText: '234, 440000, Pakistan',
-                isInternational: true,
-                line1: '234',
-                postalCode: '440000',
-                country: 'PK'
-            },
-            email: {
-                address: 'siraj.urrahman@n3o.ltd'
-            },
-            telephone: {
-                country: 'PK',
-                number: '3335183701'
-            }
-        };
-
-        console.log(browserInfo);
-
-        const flowParameters = {
-            flowId: "",
-            flowRevision: 1,
-            scopeId: '',
-            billingInfo: billingInfo,
-            namedParameters: {
-                methodId: '264cd00d-3d90-4eaa-9bd5-8cc0b7e5fbd6'
-            }
-        };
-
-        function processCustomerRequest(token) {
-            const paymentData = {
-                account: account,
-                billingInfo: {
-                    name: {
-                        firstName: 'siraj',
-                        lastName: 'ur rahman'
-                    },
-                    address: {
-                        multiLineText: '234\n440000\nPakistan',
-                        singleLineText: '234, 440000, Pakistan',
-                        isInternational: true,
-                        line1: '234',
-                        postalCode: '440000',
-                        country: 'PK'
-                    },
-                    email: {
-                        address: 'siraj.urrahman@n3o.ltd'
-                    },
-                    telephone: {
-                        country: 'PK',
-                        number: '3335183701'
-                    }
-                },
-                method: {
-                    date: '2025-12-22',
-                    quoteValue: {
-                        currency: 'EUR',
-                        amount: 10
-                    },
-                    idempotencyKey: '123',
-                    postalCode: '440000',
-                    country: 'PK',
-                    HostedTokenizationId: token
-                }
-            };
-
-            fetch('http://localhost:25713/worldline/v1.0/264cd00d-3d90-4eaa-9bd5-8cc0b7e5fbd6/flow/payment', {
-                method: 'POST',
-                headers: {
-                    'accept': 'application/json',
-                    'N3O-Ignore-Validation-Warnings': 'true',
-                    'N3O-Subscription-Id': '00000006-0000-0000-0000-000000000000',
-                    'Authorization': bearerToken,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(paymentData),
-            });
-        }
-
-        function processFlowPaymentRequest(token) {
-            const paymentData = {
-                account: account,
-                Parameters: flowParameters,
-                Request: {
-                    date: '2025-12-22',
-                    value: {
-                        currency: 'EUR',
-                        amount: 10
-                    },
-                    idempotencyKey: '123',
-                    hostedTokenizationId: token,
-                    digitalWallet: {
-                        apple: {
-                            token: "eyJ0b2tlbiI6eyJwYXltZW50RGF0YSI6eyJkYXRhIjoiU3hwSzREckM4S1JPdVNGVXltdnliRllFV3hWd3kxeHg5akRZQUFMMGtlOU1ZdStuclNPajlzb0FJYnlBcG1CaFFnRFp5NDRzdXRrbWRnRjRQSWdFVVBnOVhGVmpRcmJ0aEQ0TXpoOEZvaklLSnB5WjNzV3BoS1RSRTUyNWdRUU5SR3d2dGowcHd6THVxWEgvaDlOQVA1V3FnSURsYW9KUHBmRFFic1VIbE00ajkrc3Nha2I4M3ExdlZmY2NNMFFJWUJRZTY4ODY4a1ZzcXJVZ1MvVTZQT2YvNkVQclN6UE9yRFdhRWRBaXNtZGlTbGJHUC90QVFHZWpMbnNSd0M0Z2libE01bkRsL2Znay9UMThidnZBR2E4bDJKRW44UldHVlhRT3JMR29nV3RvNElvRmZBcitMNWMxRWZEWEZEYjVNaXg1TXNOT0NHYVhzMTFpZXdvd3F3YldYZ3BKbWZONjhqckljUUZsU0I0clFSVzF2Tmw5SExDem11Mlo2a09mb0ozdjZ5TmtlaUh1YktZPSIsInNpZ25hdHVyZSI6Ik1JQUdDU3FHU0liM0RRRUhBcUNBTUlBQ0FRRXhEVEFMQmdsZ2hrZ0JaUU1FQWdFd2dBWUpLb1pJaHZjTkFRY0JBQUNnZ0RDQ0ErTXdnZ09Jb0FNQ0FRSUNDQlpqVElzT01GY1hNQW9HQ0NxR1NNNDlCQU1DTUhveExqQXNCZ05WQkFNTUpVRndjR3hsSUVGd2NHeHBZMkYwYVc5dUlFbHVkR1ZuY21GMGFXOXVJRU5CSUMwZ1J6TXhKakFrQmdOVkJBc01IVUZ3Y0d4bElFTmxjblJwWm1sallYUnBiMjRnUVhWMGFHOXlhWFI1TVJNd0VRWURWUVFLREFwQmNIQnNaU0JKYm1NdU1Rc3dDUVlEVlFRR0V3SlZVekFlRncweU5EQTBNamt4TnpRM01qZGFGdzB5T1RBME1qZ3hOelEzTWpaYU1GOHhKVEFqQmdOVkJBTU1IR1ZqWXkxemJYQXRZbkp2YTJWeUxYTnBaMjVmVlVNMExWQlNUMFF4RkRBU0JnTlZCQXNNQzJsUFV5QlRlWE4wWlcxek1STXdFUVlEVlFRS0RBcEJjSEJzWlNCSmJtTXVNUXN3Q1FZRFZRUUdFd0pWVXpCWk1CTUdCeXFHU000OUFnRUdDQ3FHU000OUF3RUhBMElBQk1JVmQrM3Ixc2V5SVk5bzNYQ1FvU0dOeDdDOWJ5d29QWVJnbGRsSzlLVkJHNE5DRHRnUjgwQitnek1mSEZURDkrc3lJTmE2MWRUdjlKS0ppVDU4RHhPamdnSVJNSUlDRFRBTUJnTlZIUk1CQWY4RUFqQUFNQjhHQTFVZEl3UVlNQmFBRkNQeVNjUlBrK1R2SitiRTlpaHNQNks3L1M1TE1FVUdDQ3NHQVFVRkJ3RUJCRGt3TnpBMUJnZ3JCZ0VGQlFjd0FZWXBhSFIwY0RvdkwyOWpjM0F1WVhCd2JHVXVZMjl0TDI5amMzQXdOQzFoY0hCc1pXRnBZMkV6TURJd2dnRWRCZ05WSFNBRWdnRVVNSUlCRURDQ0FRd0dDU3FHU0liM1kyUUZBVENCL2pDQnd3WUlLd1lCQlFVSEFnSXdnYllNZ2JOU1pXeHBZVzVqWlNCdmJpQjBhR2x6SUdObGNuUnBabWxqWVhSbElHSjVJR0Z1ZVNCd1lYSjBlU0JoYzNOMWJXVnpJR0ZqWTJWd2RHRnVZMlVnYjJZZ2RHaGxJSFJvWlc0Z1lYQndiR2xqWVdKc1pTQnpkR0Z1WkdGeVpDQjBaWEp0Y3lCaGJtUWdZMjl1WkdsMGFXOXVjeUJ2WmlCMWMyVXNJR05sY25ScFptbGpZWFJsSUhCdmJHbGplU0JoYm1RZ1kyVnlkR2xtYVdOaGRHbHZiaUJ3Y21GamRHbGpaU0J6ZEdGMFpXMWxiblJ6TGpBMkJnZ3JCZ0VGQlFjQ0FSWXFhSFIwY0RvdkwzZDNkeTVoY0hCc1pTNWpiMjB2WTJWeWRHbG1hV05oZEdWaGRYUm9iM0pwZEhrdk1EUUdBMVVkSHdRdE1Dc3dLYUFub0NXR0kyaDBkSEE2THk5amNtd3VZWEJ3YkdVdVkyOXRMMkZ3Y0d4bFlXbGpZVE11WTNKc01CMEdBMVVkRGdRV0JCU1VWOXR2MVhTQmhvbUpkaTkrVjRVSDU1dFlKREFPQmdOVkhROEJBZjhFQkFNQ0I0QXdEd1lKS29aSWh2ZGpaQVlkQkFJRkFEQUtCZ2dxaGtqT1BRUURBZ05KQURCR0FpRUF4dkFqeXlZVXV6QTRpS0ZpbUQ0YWsvRUZiMUQ2ZU0yNXVreWlRY3dVNGw0Q0lRQytQTkRmMFdKSDlrbEVkVGdPblVUQ0tLRUlrS09oM0hKTGkweTRpSmdZdkRDQ0F1NHdnZ0oxb0FNQ0FRSUNDRWx0TDc4Nm1OcVhNQW9HQ0NxR1NNNDlCQU1DTUdjeEd6QVpCZ05WQkFNTUVrRndjR3hsSUZKdmIzUWdRMEVnTFNCSE16RW1NQ1FHQTFVRUN3d2RRWEJ3YkdVZ1EyVnlkR2xtYVdOaGRHbHZiaUJCZFhSb2IzSnBkSGt4RXpBUkJnTlZCQW9NQ2tGd2NHeGxJRWx1WXk0eEN6QUpCZ05WQkFZVEFsVlRNQjRYRFRFME1EVXdOakl6TkRZek1Gb1hEVEk1TURVd05qSXpORFl6TUZvd2VqRXVNQ3dHQTFVRUF3d2xRWEJ3YkdVZ1FYQndiR2xqWVhScGIyNGdTVzUwWldkeVlYUnBiMjRnUTBFZ0xTQkhNekVtTUNRR0ExVUVDd3dkUVhCd2JHVWdRMlZ5ZEdsbWFXTmhkR2x2YmlCQmRYUm9iM0pwZEhreEV6QVJCZ05WQkFvTUNrRndjR3hsSUVsdVl5NHhDekFKQmdOVkJBWVRBbFZUTUZrd0V3WUhLb1pJemowQ0FRWUlLb1pJemowREFRY0RRZ0FFOEJjUmhCblhaSVhWR2w0bGdRZDI2SUNpNzk1N3JrM2dqZnhMaytFelZ0Vm1Xeld1SXRDWGRnMGlUbnU2Q1AxMkY4Nkl5M2E3Wm5DK3lPZ3BoUDlVUmFPQjl6Q0I5REJHQmdnckJnRUZCUWNCQVFRNk1EZ3dOZ1lJS3dZQkJRVUhNQUdHS21oMGRIQTZMeTl2WTNOd0xtRndjR3hsTG1OdmJTOXZZM053TURRdFlYQndiR1Z5YjI5MFkyRm5NekFkQmdOVkhRNEVGZ1FVSS9KSnhFK1Q1TzhuNXNUMktHdy9vcnY5TGtzd0R3WURWUjBUQVFIL0JBVXdBd0VCL3pBZkJnTlZIU01FR0RBV2dCUzdzTjZoV0RPSW1xU0ttZDYrdmV1djJzc2txekEzQmdOVkhSOEVNREF1TUN5Z0txQW9oaVpvZEhSd09pOHZZM0pzTG1Gd2NHeGxMbU52YlM5aGNIQnNaWEp2YjNSallXY3pMbU55YkRBT0JnTlZIUThCQWY4RUJBTUNBUVl3RUFZS0tvWklodmRqWkFZQ0RnUUNCUUF3Q2dZSUtvWkl6ajBFQXdJRFp3QXdaQUl3T3M5eWcxRVdtYkdHK3pYRFZzcGl2L1FYN2RrUGRVMmlqcjd4bklGZVFyZUorSmozbTFtZm1OVkJEWStkNmNMK0FqQXlMZFZFSWJDakJYZHNYZk00TzVCbi9SZDhMQ0Z0bGsvR2NtbUNFbTlVK0hwOUc1bkxtd21KSVdFR21ROEpraDBBQURHQ0FZZ3dnZ0dFQWdFQk1JR0dNSG94TGpBc0JnTlZCQU1NSlVGd2NHeGxJRUZ3Y0d4cFkyRjBhVzl1SUVsdWRHVm5jbUYwYVc5dUlFTkJJQzBnUnpNeEpqQWtCZ05WQkFzTUhVRndjR3hsSUVObGNuUnBabWxqWVhScGIyNGdRWFYwYUc5eWFYUjVNUk13RVFZRFZRUUtEQXBCY0hCc1pTQkpibU11TVFzd0NRWURWUVFHRXdKVlV3SUlGbU5NaXc0d1Z4Y3dDd1lKWUlaSUFXVURCQUlCb0lHVE1CZ0dDU3FHU0liM0RRRUpBekVMQmdrcWhraUc5dzBCQndFd0hBWUpLb1pJaHZjTkFRa0ZNUThYRFRJMU1USXlNekV6TURBME5Wb3dLQVlKS29aSWh2Y05BUWswTVJzd0dUQUxCZ2xnaGtnQlpRTUVBZ0doQ2dZSUtvWkl6ajBFQXdJd0x3WUpLb1pJaHZjTkFRa0VNU0lFSUNERDhtbkpTamdkaEFiaUJIZ05panNocU0wMzEvTEpWSGpWNDZ0dXBQSkNNQW9HQ0NxR1NNNDlCQU1DQkVjd1JRSWdYZGFEUkczbG1tN2piajJXdk5ldHg4R1lpRVdHWDZTRXpMY0NMdGdjRXZvQ0lRQzdiem1tclRlTFFIN2FmZ09mZ1ZNRjg3U3pEMXg2blZqVysvQWFacVc2bVFBQUFBQUFBQT09IiwiaGVhZGVyIjp7InB1YmxpY0tleUhhc2giOiJaZ1JDRno3VjJjRGdjLzVGQnNTOEQxZC9McmtxN05ldlU4T1djT1NkZ1ZBPSIsImVwaGVtZXJhbFB1YmxpY0tleSI6Ik1Ga3dFd1lIS29aSXpqMENBUVlJS29aSXpqMERBUWNEUWdBRXdxdi9JeWlJaHk0elVEUjVxSDAxRm4xdGY1bUJiUFVvazc3a1ZqV2JLdTY1Nm5jd0xubDhIRXJxQUtHS2FraEdaTXI4d2NQKzdXdjZpd2hzSkduK2Z3PT0iLCJ0cmFuc2FjdGlvbklkIjoiNDJjZjQyYjE4MTFmMjU0ZmM5MzcxYTZlZGIyNzVkN2Y3MTE4M2NkYTZmMmUzNmUxODBlYmQ5MDM3YjUyMDRlNiJ9LCJ2ZXJzaW9uIjoiRUNfdjEifSwicGF5bWVudE1ldGhvZCI6eyJkaXNwbGF5TmFtZSI6Ik1hc3RlckNhcmQgMTMxMiIsIm5ldHdvcmsiOiJNYXN0ZXJDYXJkIiwidHlwZSI6ImRlYml0In0sInRyYW5zYWN0aW9uSWRlbnRpZmllciI6IjQyQ0Y0MkIxODExRjI1NEZDOTM3MUE2RURCMjc1RDdGNzExODNDREE2RjJFMzZFMTgwRUJEOTAzN0I1MjA0RTYifX0=",
-                            cardBrand: "MasterCard",
-                            billingInfo: billingInfo
-                        },
-                        type: 'apple'
-                        // threeDSecure: {
-                        //     callbackUrl: 'http://localhost:3000/worldline3ds/',
-                        //     ...browserInfo
-                        // }
-                    }
-                }
-            };
-
-            fetch('http://localhost:25713/worldline/v1.0/264cd00d-3d90-4eaa-9bd5-8cc0b7e5fbd6/flow/payment', {
-                method: 'POST',
-                headers: {
-                    'accept': 'application/json',
-                    'N3O-Ignore-Validation-Warnings': 'true',
-                    'N3O-Subscription-Id': '00000006-0000-0000-0000-000000000000',
-                    'Authorization': bearerTokenEl,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(paymentData),
-            }).then(res => res.json())
-                .then(apiRes => {
-                    log("Payment: ", apiRes);
-                    document.getElementById('hosted-token-frame').hidden = true;
-                    document.getElementById('hosted-token-frame-three-d-secure').hidden = false;
-                    // Assume `response` is your CreatePaymentResponse
-                    if (apiRes.result.worldlineActionRequired && apiRes.result.worldlineActionUrl) {
-                        var iframe = document.getElementById("secure3dIFrame");
-                        iframe.src = apiRes.result.worldlineActionUrl;
-                    }
-
-                });
-        }
 
         function processFlowCredentialRequest(token) {
+            const methodId = getMethodId();
+            
+            // Construct flowParameters dynamically
+            const flowParameters = {
+                flowId: "",
+                flowRevision: 1,
+                scopeId: '',
+                billingInfo: billingInfo,
+                namedParameters: {
+                    methodId: methodId
+                }
+            };
+
             const credentialData = {
                 account: account,
                 Parameters: flowParameters,
@@ -468,36 +212,36 @@
                     threeDSecure: {
                         ...browserInfo
                     },
-                    redirectUrl: 'http://localhost:3000/worldline3ds',
+                    redirectUrl: `${window.location.origin}/worldline/worldline3ds.html`,
 
                 }
             };
-            fetch('http://localhost:25713/worldline/v1.0/264cd00d-3d90-4eaa-9bd5-8cc0b7e5fbd6/flow/credential', {
+            
+            return fetch(buildEndpoint(`${methodId}/flow/credential`), {
                 method: 'POST',
-                headers: {
-                    'accept': 'application/json',
-                    'N3O-Ignore-Validation-Warnings': 'true',
-                    'N3O-Subscription-Id': '00000006-0000-0000-0000-000000000000',
-                    'Authorization': bearerTokenEl,
-                    'Content-Type': 'application/json'
-                },
+                headers: buildHeaders(true),
                 body: JSON.stringify(credentialData),
             }).then(res => res.json())
                 .then(apiRes => {
                     log("Payment: ", apiRes);
-                    document.getElementById('hosted-token-frame').hidden = true;
-                    document.getElementById('hosted-token-frame-three-d-secure').hidden = false;
-                    // Assume `response` is your CreatePaymentResponse
-                    if (apiRes.result.requireAction && apiRes.result.actionUrl) {
+                    
+                    if (apiRes.result && apiRes.result.requireAction && apiRes.result.actionUrl) {
+                        document.getElementById('hosted-token-frame').hidden = true;
+                        document.getElementById('hosted-token-frame-three-d-secure').hidden = false;
                         var iframe = document.getElementById("secure3dIFrame");
                         iframe.src = apiRes.result.actionUrl;
+                        
+                        document.getElementById('submit-tokenization').style.display = 'none';
+                    } else {
+                        setLoading('submit-tokenization', false);
                     }
-
+                })
+                .catch(err => {
+                    log("Credential Request Failed: " + err.message);
+                    setLoading('submit-tokenization', false);
                 });
         }
 
     </script>
-
 </body>
-
 </html>

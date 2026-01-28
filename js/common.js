@@ -129,6 +129,14 @@ function buildHeaders(ignoreValidationWarnings) {
     return headers;
 }
 
+function getGenericField(id) {
+    const field = (document.getElementById(id).value || '').trim();
+    if (!field) {
+        throw new Error(`Error: ${id} Id is required`);
+    }
+    return field;
+}
+
 function getMethodId() {
     const methodId = (document.getElementById('methodId').value || '').trim();
     if (!methodId) {
@@ -145,7 +153,7 @@ function debounce(fn, ms) {
     };
 }
 
-function loadJS(FILE_URL, async = true, onLoadAction = () => { }) {
+function loadJS(FILE_URL, async = true, onLoadAction = () => { }, clientLibraryIntegrity) {
     let scriptEle = document.createElement("script");
 
     scriptEle.setAttribute("src", FILE_URL);
@@ -160,6 +168,11 @@ function loadJS(FILE_URL, async = true, onLoadAction = () => { }) {
     scriptEle.addEventListener("error", (ev) => {
         console.log("Error on loading file", ev);
     });
+    
+    if (clientLibraryIntegrity) {
+        scriptEle.integrity = clientLibraryIntegrity;
+        scriptEle.crossOrigin = "anonymous";
+    }
 }
 
 function copyJson() {
@@ -168,6 +181,26 @@ function copyJson() {
         textarea.select();
         document.execCommand("copy");
         alert("JSON copied to clipboard");
+    }
+}
+
+function setLoading(buttonId, isLoading, loadingText = 'Processing...') {
+    const btn = document.getElementById(buttonId);
+    if (!btn) return;
+
+    if (isLoading) {
+        if (!btn.dataset.originalText) {
+            btn.dataset.originalText = btn.innerText;
+        }
+        btn.innerText = loadingText;
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+        btn.style.cursor = 'not-allowed';
+    } else {
+        btn.innerText = btn.dataset.originalText || 'Submit';
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
     }
 }
 
@@ -247,7 +280,9 @@ function renderGenericFields(containerId, defaults = {}) {
         { id: 'apiPrefix', label: 'API Prefix', type: 'text', value: defaults.apiPrefix || '' },
         { id: 'methodId', label: 'Method ID', type: 'text', value: defaults.methodId || '' },
         { id: 'subscriptionId', label: 'Subscription ID', type: 'text', value: defaults.subscriptionId || '00000006-0000-0000-0000-000000000000' },
-        { id: 'bearerToken', label: 'Bearer Token', type: 'text', placeholder: 'Authorization (Bearer ...)', value: defaults.bearerToken || '' }
+        { id: 'bearerToken', label: 'Bearer Token', type: 'text', placeholder: 'Authorization (Bearer ...)', value: defaults.bearerToken || '' },
+        { id: 'flowId', label: 'flow Id', type: 'text', placeholder: 'Flow Id', value: defaults.flowId || '' },
+        { id: 'scopeId', label: 'scope Id', type: 'text', placeholder: 'Scope Id', value: defaults.scopeId || '' }
     ];
 
     let html = '';

@@ -10,6 +10,20 @@
         integrity="sha512-ZplJXUTeRh13LTLjfwydrUFpRJaHOoSIKdoMQP4s1gWyJoXqsTqxBeGdt4fQyfNq/Xo21u8IGaA3PjLfiefZJw=="
         crossorigin="anonymous"></script>
     <style>
+        #hosted-payments-container iframe {
+            border-radius: 8px;
+            height: 450px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        #submit-tokenization {
+            margin-top: 15px;
+            background-color: #007bff;
+            color: white;
+            font-weight: bold;
+            transition: opacity 0.3s;
+        }
+
         body {
             font-family: Arial, sans-serif;
             padding: 1rem;
@@ -87,9 +101,13 @@
         renderGenericFields('config-section', {
             serverBase: 'http://localhost:25713',
             apiPrefix: '/opayo/v1.0',
-            methodId: 'bd3ce6a7-0000-0000-0000-000000000000',
+            methodId: '6545d794-2a91-483c-8a5d-97e04bdc6011',
             // methodId: 'a9f6f6e4-01a7-4fe1-bec7-cd2c6e705c88',
-            subscriptionId: '00000006-0000-0000-0000-000000000000'
+            subscriptionId: '0000006e-0000-0000-0000-000000000000',
+            // scopeId: '4c3a230a-72ad-4bdf-a602-38ad9ce48b1d',
+            scopeId: '8a9bd9c0-fb0d-47fc-b346-a08a48c7806f',
+            // flowId: 'bc7bb42a-0c89-4cdb-a71f-0ca2ac9e88fa'
+            flowId: '63290511-2c91-40ab-9028-809e1f2b9962'
         });
 
         document.addEventListener("DOMContentLoaded", () => {
@@ -111,6 +129,7 @@
         }
 
         async function initTokenization() {
+            setLoading('submit-tokenization', true, 'Initializing SDK...');
             const methodId = getMethodId();
 
             // NOTE: Assuming Opayo has a similar hosted tokenization session endpoint
@@ -121,6 +140,7 @@
 
             if (!res.ok) {
                 log("Error initializing tokenization session", await res.text());
+                setLoading('submit-tokenization', false);
                 return;
             }
 
@@ -134,42 +154,66 @@
                 const checkout = opayoCheckout({
                     merchantSessionKey: merchantSessionKey.key,
                     containerSelector: '#hosted-payments-container',
+                    styles: {
+                        base: {
+                            fontSize: '16px',
+                            color: '#333',
+                            fontFamily: 'Arial, sans-serif',
+                        },
+                        error: {
+                            color: 'red'
+                        },
+                        focus: {
+                            color: '#007bff'
+                        }
+                    },
                     onTokenise: async function (tokenisationResult) {
+                        setLoading('submit-tokenization', true, 'Processing Payment...');
                         if (tokenisationResult.success) {
                             log('CardIdentifier', tokenisationResult.cardIdentifier);
 
-                            const res = await processFlowPaymentAsync(`http://localhost:25713/opayo/v1.0/${methodId}/flow/payment`,
-                                methodId, (paymentData) => {
-                                    paymentData.request = {
-                                        card: {
-                                            merchantSessionKey: merchantSessionKey.key,
-                                            identifier: tokenisationResult.cardIdentifier
-                                        },
-                                        threeDSecure: {
-                                            ...browserInfo
-                                        },
-                                        redirectUrl: 'http://100.116.232.30:3000/opayo?3ds=true',
 
+                            const res = await processFlowPaymentAsync(`http://localhost:14442/opayo/v1.0/payments/${methodId}/${getGenericField('flowId')}/${getGenericField('scopeId')}`,
+                                methodId, (paymentData) => {
+                                    paymentData.idempotencyKey = '1233';
+                                    paymentData.value = {
+                                        currency: 'GBP',
+                                            amount: 10
+                                    },
+                                    paymentData.threeDSecure = {
+                                        ...browserInfo
                                     };
+                                    paymentData.card = {
+                                        merchantSessionKey: merchantSessionKey.key,
+                                        identifier: tokenisationResult.cardIdentifier
+                                    };
+
                                     log('Payment Data', paymentData);
                                 });
 
 
                             log('Payment Response', res);
 
-                            if (res.result.requireAction) {
+                            if (res.result && res.result.requireAction) {
                                 showThreeDSecureIframe(res.result.opayoTransactionId, res.result.threeDSecureV2);
+                                document.getElementById('submit-tokenization').style.display = 'none';
+                            } else {
+                                setLoading('submit-tokenization', false);
                             }
                         } else {
                             console.error(tokenisationResult.error.errorMessage);
+                            log("Tokenization Error: " + tokenisationResult.error.errorMessage);
+                            setLoading('submit-tokenization', false);
                         }
                     }
                 });
 
                 checkout.form({ formSelector: '#checkout-form' });
+                setLoading('submit-tokenization', false);
             } catch (error) {
                 console.error(error);
                 log("Error initializing tokenizer", error);
+                setLoading('submit-tokenization', false);
             }
         }
         // 2. Setup Persistence

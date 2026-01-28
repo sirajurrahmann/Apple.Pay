@@ -1,0 +1,17 @@
+{
+  auto_https off
+}
+
+:3000 {
+  tls localhost+2.pem localhost+2-key.pem
+
+  root * .
+  file_server
+
+  header {
+    Access-Control-Allow-Origin *
+    Access-Control-Allow-Private-Network true
+    Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+    Access-Control-Allow-Headers Content-Type
+  }
+}
