@@ -3,6 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
+    <script src="../js/common.js"></script>
     <title>Apple Pay Static Debug Page</title>
     <script crossorigin src="https://applepay.cdn-apple.com/jsapi/1.latest/apple-pay-sdk.js"></script>
     <style>
@@ -50,17 +51,14 @@
 </head>
 
 <body>
+    <h2>Apple Pay – Static Page (Debug Enabled)</h2>
+
+    <div id="config-section"></div>
+    <apple-pay-button id="applePayBtn" buttonstyle="black" type="plain" locale="en-US">
+    </apple-pay-button>
+
     <h3>Log Output</h3>
     <div id="log"></div>
-    <h2>Apple Pay – Static Page (Debug Enabled)</h2>
-    <input id="hostServer" type="url" placeholder="HOST URL" value="https://beta.n3o.cloud/eu1/api/checkout/"/>
-    <input id="apiPrefix" type="text" placeholder="API Prefix" value="worldline/v1.0/" />
-    <input id="methodId" type="text" placeholder="Method ID" value="f483eccc-680d-42c1-8e6f-6c4f4662c1f0" />
-    <input id="flowId" type="text" placeholder="Flow ID" value="bc7bb42a-0c89-4cdb-a71f-0ca2ac9e88fa"/>
-    <input id="scopeId" type="text" placeholder="Scope ID" value="4c3a230a-72ad-4bdf-a602-38ad9ce48b1d" />
-    <input id="merchantId" type="text" placeholder="Merchant ID" value="merchant.cloud.n3o.testapp" />
-    <input id="subscriptionId" type="text" placeholder="N3O-Subscription-Id" value="0000006e-0000-0000-0000-000000000000" />
-    <input id="bearerToken" type="text" placeholder="Authorization (Bearer ...)" />
     <style>
         apple-pay-button {
             --apple-pay-button-width: 150px;
@@ -70,9 +68,7 @@
             --apple-pay-button-box-sizing: border-box;
         }
     </style>
-    <apple-pay-button id="applePayBtn" buttonstyle="black" type="plain" locale="en-US">
 
-    </apple-pay-button>
 
 
     <div id="tokenContainer">
@@ -83,54 +79,19 @@
     </div>
 
     <script>
-        /* -----------------------------
-           Logging Helpers
-        ------------------------------*/
-        function log(message, data) {
-            const logBox = document.getElementById("log");
-            const timestamp = new Date().toISOString();
-            let text = `[${timestamp}] ${message}`;
+        const defaultFields = {
+            serverBase: 'https://6abe3b9116d9.ngrok-free.app',
+            apiPrefix: '/cybersource/v1.0/',
+            methodId: '2b3cc486-458f-4df5-98fb-6c6cfb4092f1',
+            subscriptionId: '0000006e-0000-0000-0000-000000000000',
+            scopeId: '8a9bd9c0-fb0d-47fc-b346-a08a48c7806f',
+            flowId: '63290511-2c91-40ab-9028-809e1f2b9962',
+            merchantId: 'merchant.cloud.n3o.testapp'
+        };
+        const otherFields = [{ id: 'merchantId', label: 'Merchant Id', type: 'text', placeholder: 'Merchant Id', value: defaultFields.merchantId }];
 
-            if (data) {
-                console.log(message, data);
-                text += "\n" + JSON.stringify(data, null, 2);
-            } else {
-                console.log(message);
-            }
+        renderGenericFields('config-section', defaultFields, otherFields);
 
-            logBox.textContent += text + "\n\n";
-            logBox.scrollTop = logBox.scrollHeight;
-        }
-
-        function buildHeaders() {
-            const headers = { "Content-Type": "application/json" };
-
-            const subscriptionId = (document.getElementById('subscriptionId').value || '').trim();
-            if (subscriptionId) {
-                headers["N3O-Subscription-Id"] = subscriptionId;
-            }
-
-            const bearerToken = (document.getElementById('bearerToken').value || '').trim();
-            if (bearerToken) {
-                headers["Authorization"] = bearerToken;
-            }
-
-            return headers;
-        }
-
-        /* -----------------------------
-           Copy JSON
-        ------------------------------*/
-        function copyJson() {
-            const textarea = document.getElementById("paymentJson");
-            textarea.select();
-            document.execCommand("copy");
-            alert("Apple Pay JSON copied to clipboard");
-        }
-
-        /* -----------------------------
-           Apple Pay Availability Check
-        ------------------------------*/
         document.addEventListener("DOMContentLoaded", () => {
 
             log("Page loaded");
@@ -147,9 +108,6 @@
 
             log("Apple Pay is available");
             document.getElementById("applePayBtn").style.display = "inline-block";
-
-            const subscriptionId = document.getElementById('subscriptionId');
-            if (!subscriptionId.value) subscriptionId.value = '00000006-0000-0000-0000-000000000000';
         });
 
         /* -----------------------------
@@ -158,7 +116,6 @@
         document.getElementById("applePayBtn").addEventListener("click", startApplePay);
 
         function startApplePay() {
-
             log("Apple Pay button clicked");
 
             const paymentRequest = {
@@ -179,18 +136,16 @@
 
             const session = new ApplePaySession(3, paymentRequest);
 
-            /* -----------------------------
-               Merchant Validation
-            ------------------------------*/
+
             session.onvalidatemerchant = async (event) => {
 
                 log("Merchant validation started", {
                     validationURL: event.validationURL
                 });
                 const params = new URLSearchParams(window.location.search);
-                const serverUrl = params.get("serverUrl");
+                const serverUrl = params.get("hostUrl");
 
-                var server = serverUrl ?? document.getElementById("hostServer").value;
+                var server = serverUrl ?? document.getElementById("serverBase").value;
                 const apiPrefix = document.getElementById("apiPrefix").value;
                 const methodId = document.getElementById("methodId").value;
                 const flowId = document.getElementById("flowId").value;
@@ -235,27 +190,28 @@
 
                 // Show JSON for copying
                 const prettyJson = JSON.stringify(event.payment);
-                document.getElementById("paymentJson").value = prettyJson;
-                document.getElementById("tokenContainer").style.display = "block";
 
-                log("Apple Pay payment token is available (see below)");
-                const params = new URLSearchParams(window.location.search);
-                const serverUrl = params.get("serverUrl");
+                const res = await processFlowPaymentAsync(` https://6abe3b9116d9.ngrok-free.app/cybersource/v1.0/payments/${methodId}/${getGenericField('flowId')}/${getGenericField('scopeId')}`,
+                    methodId, (paymentData) => {
+                        paymentData.idempotencyKey = '1233';
+                        paymentData.value = {
+                            currency: 'GBP',
+                            amount: 10
+                        };
 
-                var server = serverUrl ?? document.getElementById("hostServer").value;
-                const apiPrefix = document.getElementById("apiPrefix").value;
-                const methodId = document.getElementById("methodId").value;
-                const flowId = document.getElementById("flowId").value;
-                const scopeId = document.getElementById("scopeId").value;
-                console.log(server);
+                        paymentData.digitalWallet = {
+                            apple: {
+                                token: prettyJson,
+                                billingInfo: billingContact
+                            }
 
-                const apiUrl = server + apiPrefix + methodId + "/" + flowId + "/" + scopeId + "/process-payment";
-                const response = await fetch(apiUrl, {
-                    method: "POST",
-                    headers: buildHeaders(),
-                    body: prettyJson
-                }
-                );
+                        };
+
+                        log('Payment Data', paymentData);
+                    });
+
+
+                log('Payment Response', res);
 
                 if (response.ok) {
                     log("Payment successfully sent to backend");
@@ -271,8 +227,8 @@
 
             };
 
-            session.oncancel = () => {
-                log("Apple Pay session cancelled by user");
+            session.oncancel = (e) => {
+                log("Apple Pay session cancelled by user", e);
             };
 
             session.begin();

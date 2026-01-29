@@ -271,18 +271,20 @@ function setupConfigPersistence(sessionKey) {
 // Dynamic UI Generation (Optional but recommended for reuse)
 // -------------------------------------------------------------------
 
-function renderGenericFields(containerId, defaults = {}) {
+function renderGenericFields(containerId, defaults = {}, moreFields = []) {
     const container = document.getElementById(containerId);
     if (!container) return;
 
     const fields = [
         { id: 'serverBase', label: 'Server Base', type: 'url', value: defaults.serverBase || 'http://localhost:25713' },
         { id: 'apiPrefix', label: 'API Prefix', type: 'text', value: defaults.apiPrefix || '' },
-        { id: 'methodId', label: 'Method ID', type: 'text', value: defaults.methodId || '' },
-        { id: 'subscriptionId', label: 'Subscription ID', type: 'text', value: defaults.subscriptionId || '00000006-0000-0000-0000-000000000000' },
+        { id: 'methodId', label: 'Method ID', type: 'text', value: defaults.methodId || getEnv('METHOD_ID') || '' },
+        { id: 'subscriptionId', label: 'Subscription ID', type: 'text', value: defaults.subscriptionId || getEnv('SUBSCRIPTION_ID') || '00000006-0000-0000-0000-000000000000' },
         { id: 'bearerToken', label: 'Bearer Token', type: 'text', placeholder: 'Authorization (Bearer ...)', value: defaults.bearerToken || '' },
         { id: 'flowId', label: 'flow Id', type: 'text', placeholder: 'Flow Id', value: defaults.flowId || '' },
-        { id: 'scopeId', label: 'scope Id', type: 'text', placeholder: 'Scope Id', value: defaults.scopeId || '' }
+        { id: 'scopeId', label: 'scope Id', type: 'text', placeholder: 'Scope Id', value: defaults.scopeId || '' },
+        ...moreFields
+    
     ];
 
     let html = '';
@@ -295,6 +297,49 @@ function renderGenericFields(containerId, defaults = {}) {
     // But for now, we assume standard inputs.
 
     container.innerHTML = html;
+}
+
+// -------------------------------------------------------------------
+// Simple .env Loader
+// -------------------------------------------------------------------
+
+let AppEnv = null;
+
+function parseEnv(text) {
+    const env = {};
+    text.split(/\r?\n/).forEach(line => {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) return;
+        const idx = trimmed.indexOf('=');
+        if (idx === -1) return;
+        const key = trimmed.slice(0, idx).trim();
+        const value = trimmed.slice(idx + 1).trim();
+        env[key] = value;
+    });
+    return env;
+}
+
+function loadEnv(path = '/.env') {
+    if (AppEnv) return Promise.resolve(AppEnv);
+    return fetch(path, { method: 'GET' })
+        .then(res => {
+            if (!res.ok) throw new Error('Error: Failed to load .env');
+            return res.text();
+        })
+        .then(text => {
+            AppEnv = parseEnv(text);
+            return AppEnv;
+        })
+        .catch(() => {
+            AppEnv = {};
+            return AppEnv;
+        });
+}
+
+function getEnv(key, fallback) {
+    if (!AppEnv) return fallback;
+    const v = AppEnv[key];
+    return (v === undefined || v === null || v === '') ? fallback : v;
 }
 
 
