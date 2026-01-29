@@ -207,7 +207,7 @@
                     const apiUrl = serverUrl ?? apiPrefix + "payments/" + `${methodId}/${getGenericField('flowId')}/${getGenericField('scopeId')}`;
                     log("API URL for payment authorization", apiUrl);
 
-                    const res = await processFlowPaymentAsync(apiUrl, (paymentData) => {
+                    const res = await processFlowPaymentAsync(apiUrl, methodId, (paymentData) => {
                         paymentData.idempotencyKey = '1233';
                         paymentData.value = {
                             currency: 'USD',
