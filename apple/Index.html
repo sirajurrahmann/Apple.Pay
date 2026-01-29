@@ -171,9 +171,9 @@
 
                 const merchantSession = await response.json();
 
-                log("Merchant validation response received", merchantSession.result);
+                log("Merchant validation response received", merchantSession);
 
-                session.completeMerchantValidation(merchantSession);
+                session.completeMerchantValidation(merchantSession.result);
             };
 
             /* -----------------------------
