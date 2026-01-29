@@ -204,6 +204,8 @@
 
                     const prettyJson = JSON.stringify(event.payment);
                     const apiUrl = serverUrl ?? apiPrefix + "payments/" + `${methodId}/${getGenericField('flowId')}/${getGenericField('scopeId')}`;
+                    log("API URL for payment authorization", apiUrl);
+
                     const res = await processFlowPaymentAsync(apiUrl, (paymentData) => {
                         paymentData.idempotencyKey = '1233';
                         paymentData.value = {
@@ -213,7 +215,11 @@
 
                         paymentData.digitalWallet = {
                             apple: {
-                                token: prettyJson,
+                                parameters: {
+                                    data : event.payment.data,
+                                    publicKeyHash: event.payment.publicKeyHash,
+                                    ephemeralPublicKey: event.payment.ephemeralPublicKey,
+                                },
                                 billingInfo: {
                                     name: {
                                         firstName: billingContact.name.givenName,
@@ -238,7 +244,6 @@
                                     }
                                 }
                             }
-
                         };
 
                         log('Payment Data', paymentData);
