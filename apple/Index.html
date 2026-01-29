@@ -193,26 +193,50 @@
                     log('No billing contact returned');
                 }
 
-                // Show JSON for copying
+                const params = new URLSearchParams(window.location.search);
+                const serverUrl = params.get("hostUrl") ?? defaultFields.hostUrl;
+                
                 const prettyJson = JSON.stringify(event.payment);
                 const apiUrl = serverUrl ?? apiPrefix + "payments/" + `${methodId}/${getGenericField('flowId')}/${getGenericField('scopeId')}`;
                 const res = await processFlowPaymentAsync(apiUrl, (paymentData) => {
-                        paymentData.idempotencyKey = '1233';
-                        paymentData.value = {
-                            currency: 'USD',
-                            amount: 0.10
-                        };
+                    paymentData.idempotencyKey = '1233';
+                    paymentData.value = {
+                        currency: 'USD',
+                        amount: 0.10
+                    };
 
-                        paymentData.digitalWallet = {
-                            apple: {
-                                token: prettyJson,
-                                billingInfo: billingContact
+                    paymentData.digitalWallet = {
+                        apple: {
+                            token: prettyJson,
+                            billingInfo: {
+                                name: {
+                                    firstName: billingContact.name.givenName,
+                                    lastName: billingContact.name.familyName
+                                },
+                                address: {
+                                    line1: billingContact.addressLines[0],
+                                    line2: billingContact.addressLines[1],
+                                    line3: billingContact.addressLines[2],
+                                    line4: billingContact.addressLines[3],
+                                    locality: billingContact.locality,
+                                    administrativeArea: billingContact.administrativeArea,
+                                    postalCode: billingContact.postalCode,
+                                    country: billingContact.countryCode
+                                },
+                                email: {
+                                    address: billingContact.emailAddress
+                                },
+                                telephone: {
+                                    country: billingContact.telephoneCountryCode,
+                                    number: billingContact.telephoneNumber
+                                }
                             }
+                        }
 
-                        };
+                    };
 
-                        log('Payment Data', paymentData);
-                    });
+                    log('Payment Data', paymentData);
+                });
 
 
                 log('Payment Response', res);
