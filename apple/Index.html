@@ -125,7 +125,7 @@
 
             const paymentRequest = {
                 supportedMethods: "https://apple.com/apple-pay",
-                merchantId: document.getElementById('merchantId').value,
+                merchantId: defaultFields.merchantId,
                 countryCode: "US",
                 currencyCode: "USD",
                 supportedNetworks: ["visa", "masterCard", "amex"],
@@ -218,7 +218,7 @@
 
                 log('Payment Response', res);
 
-                if (response.ok) {
+                if (res.ok) {
                     log("Payment successfully sent to backend");
                     session.completePayment(ApplePaySession.STATUS_SUCCESS);
 
