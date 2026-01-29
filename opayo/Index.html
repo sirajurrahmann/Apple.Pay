@@ -98,17 +98,17 @@
 
     <script>
         // 1. Render Configuration Fields
-        renderGenericFields('config-section', {
-            serverBase: 'http://localhost:25713',
-            apiPrefix: '/opayo/v1.0',
+            renderGenericFields('config-section', {
+            serverBase: 'https://beta.n3o.cloud/eu1/api',
+            apiPrefix: '/checkout/opayo/v1.0/payments/',
             methodId: '6545d794-2a91-483c-8a5d-97e04bdc6011',
             // methodId: 'a9f6f6e4-01a7-4fe1-bec7-cd2c6e705c88',
             subscriptionId: '0000006e-0000-0000-0000-000000000000',
             // scopeId: '4c3a230a-72ad-4bdf-a602-38ad9ce48b1d',
-            scopeId: '8a9bd9c0-fb0d-47fc-b346-a08a48c7806f',
+                scopeId: '8a9bd9c0-fb0d-47fc-b346-a08a48c7806f',
             // flowId: 'bc7bb42a-0c89-4cdb-a71f-0ca2ac9e88fa'
-            flowId: '63290511-2c91-40ab-9028-809e1f2b9962'
-        });
+                flowId: '63290511-2c91-40ab-9028-809e1f2b9962'
+            });
 
         document.addEventListener("DOMContentLoaded", () => {
             initTokenization();
@@ -133,8 +133,8 @@
             const methodId = getMethodId();
 
             // NOTE: Assuming Opayo has a similar hosted tokenization session endpoint
-            const res = await fetch(buildEndpoint(`/dataEntry/methods/${methodId}`), {
-                method: 'GET',
+            const res = await fetch(buildEndpoint(`${methodId}/checkout`), {
+                method: 'POST',
                 headers: buildHeaders(false),
             });
 
@@ -144,15 +144,15 @@
                 return;
             }
 
-            const { merchantSessionKey } = await res.json();
-            log("Intialized with ", merchantSessionKey);
+            const { result: { key } } = await res.json();
+            log("Intialized with ", key);
 
             try {
                 OpayoConfig.restHost = 'https://sandbox.opayo.eu.elavon.com'
                 OpayoConfig.restBaseURL = ' https://sandbox.opayo.eu.elavon.com/api/v1'
 
                 const checkout = opayoCheckout({
-                    merchantSessionKey: merchantSessionKey.key,
+                    merchantSessionKey: key,
                     containerSelector: '#hosted-payments-container',
                     styles: {
                         base: {
@@ -172,19 +172,18 @@
                         if (tokenisationResult.success) {
                             log('CardIdentifier', tokenisationResult.cardIdentifier);
 
-
-                            const res = await processFlowPaymentAsync(`http://localhost:14442/opayo/v1.0/payments/${methodId}/${getGenericField('flowId')}/${getGenericField('scopeId')}`,
+                            const res = await processFlowPaymentAsync(`https://beta.n3o.cloud/eu1/api/checkout/opayo/v1.0/payments/${methodId}/${getGenericField('flowId')}/${getGenericField('scopeId')}`,
                                 methodId, (paymentData) => {
                                     paymentData.idempotencyKey = '1233';
                                     paymentData.value = {
                                         currency: 'GBP',
-                                            amount: 10
+                                        amount: 10
                                     },
-                                    paymentData.threeDSecure = {
-                                        ...browserInfo
-                                    };
+                                        paymentData.threeDSecure = {
+                                            ...browserInfo
+                                        };
                                     paymentData.card = {
-                                        merchantSessionKey: merchantSessionKey.key,
+                                        merchantSessionKey: key,
                                         identifier: tokenisationResult.cardIdentifier
                                     };
 

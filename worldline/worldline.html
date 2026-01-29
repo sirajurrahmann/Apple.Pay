@@ -93,17 +93,17 @@
 
     <script src="../js/common.js"></script>
     <script>
-        // 1. Render Configuration Fields
-        renderGenericFields('config-section', {
-            serverBase: 'http://localhost:25713',
-            apiPrefix: '/worldline/v1.0',
-            methodId: '264cd00d-3d90-4eaa-9bd5-8cc0b7e5fbd6',
-            subscriptionId: '00000006-0000-0000-0000-000000000000'
-        });
-
-        // 2. Setup Persistence
+        // 1. Render Configuration Fields (with .env support)
         const sessionKey = 'worldline.config.v1';
-        setupConfigPersistence(sessionKey);
+        loadEnv().then(() => {
+            renderGenericFields('config-section', {
+                serverBase: 'http://localhost:25713',
+                apiPrefix: '/worldline/v1.0',
+                methodId: getEnv('WORLDLINE_METHOD_ID', '264cd00d-3d90-4eaa-9bd5-8cc0b7e5fbd6'),
+                subscriptionId: getEnv('SUBSCRIPTION_ID', '00000006-0000-0000-0000-000000000000')
+            });
+            setupConfigPersistence(sessionKey);
+        });
 
         // 3. Main Logic
         let tokenizer;

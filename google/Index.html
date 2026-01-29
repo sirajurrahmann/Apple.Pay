@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Google Pay Checkout</title>
+    <script src="../js/common.js"></script>
+    <script src="https://pay.google.com/gp/p/js/pay.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 1rem;
+        }
+
+        #googlePayButtonContainer {
+            margin: 16px 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            padding: 1rem;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        #submit-googlepay {
+            padding: .8rem;
+            width: 100%;
+            background: #007bff;
+            color: white;
+            border: none;
+            font-weight: bold;
+            transition: opacity .3s;
+            display: none;
+        }
+
+        #log {
+            border: 1px solid #ccc;
+            padding: 10px;
+            height: 250px;
+            overflow-y: auto;
+            background: #f9f9f9;
+            white-space: pre-wrap;
+            font-size: 13px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Google Pay Checkout</h1>
+    <div id="googlePayButtonContainer"></div>
+    <div id="config-section"></div>
+    <button id="submit-googlepay">Submit</button>
+    <h3>Log Output</h3>
+    <div id="log"></div>
+
+    <script>
+        loadEnv().then(() => {
+            renderGenericFields('config-section', {
+                serverBase: 'http://localhost:14442/',
+                apiPrefix: '/cybersource/v1.0/payments',
+                methodId: getEnv('GOOGLE_METHOD_ID', '2b3cc486-458f-4df5-98fb-6c6cfb4092f1'),
+                subscriptionId: getEnv('SUBSCRIPTION_ID', '0000006e-0000-0000-0000-000000000000'),
+                scopeId: '8a9bd9c0-fb0d-47fc-b346-a08a48c7806f',
+                flowId: '63290511-2c91-40ab-9028-809e1f2b9962'
+            });
+            setupConfigPersistence('google.config.v1');
+        });
+
+        function baseCardMethod() {
+            return {
+                type: 'CARD',
+                parameters: {
+                    allowedAuthMethods: ['PAN_ONLY', 'CRYPTOGRAM_3DS'],
+                    allowedCardNetworks: ['VISA', 'MASTERCARD']
+                },
+                tokenizationSpecification: {
+                    type: 'PAYMENT_GATEWAY',
+                    parameters: { gateway: 'example', gatewayMerchantId: 'exampleMerchantId' }
+                }
+            };
+        }
+
+        function paymentsClient() {
+            if (!window.google || !google.payments || !google.payments.api) {
+                throw new Error('Error: Google Pay script not loaded');
+            }
+            return new google.payments.api.PaymentsClient({ environment: 'TEST' });
+        }
+
+        async function onGooglePayClicked() {
+            const client = paymentsClient();
+            const methodId = getMethodId();
+            const request = {
+                apiVersion: 2,
+                apiVersionMinor: 0,
+                allowedPaymentMethods: [baseCardMethod()],
+                transactionInfo: { currencyCode: 'EUR', totalPriceStatus: 'FINAL', totalPrice: '10.00' },
+                merchantInfo: { merchantName: 'Demo Merchant' }
+            };
+            try {
+                const paymentData = await client.loadPaymentData(request);
+                const token = paymentData?.paymentMethodData?.tokenizationData?.token;
+                if (!token) { log('Error', { message: 'No token' }); return; }
+
+                const res = await processFlowPaymentAsync(`http://localhost:14442/opayo/v1.0/payments/${methodId}/${getGenericField('flowId')}/${getGenericField('scopeId')}`,
+                    methodId, (paymentData) => {
+                        paymentData.idempotencyKey = '1233';
+                        paymentData.value = {
+                            currency: 'GBP',
+                            amount: 10
+                        },
+                            paymentData.threeDSecure = {
+                                ...browserInfo
+                            };
+                        paymentData.card = {
+                            merchantSessionKey: merchantSessionKey.key,
+                            identifier: tokenisationResult.cardIdentifier
+                        };
+
+                        log('Payment Data', paymentData);
+                    });
+
+
+                const json = await res.json();
+
+                log('Payment Response', json);
+            } catch (e) {
+                log('Error', { message: e.message });
+            }
+        }
+
+        async function initGooglePay() {
+            const client = paymentsClient();
+            const readyReq = { apiVersion: 2, apiVersionMinor: 0, allowedPaymentMethods: [baseCardMethod()] };
+            try {
+                const ready = await client.isReadyToPay(readyReq);
+                if (ready.result) {
+                    const button = client.createButton({ onClick: onGooglePayClicked });
+                    document.getElementById('googlePayButtonContainer').appendChild(button);
+                } else {
+                    log('Google Pay not available');
+                }
+            } catch (e) { log('Error', { message: e.message }); }
+        }
+
+        window.addEventListener('load', () => {
+            try { initGooglePay(); } catch (e) { log('Error', { message: e.message }); }
+        });
+    </script>
+</body>
+
+</html>

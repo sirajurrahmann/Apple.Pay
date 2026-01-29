@@ -201,9 +201,6 @@
 
 
                             log('Payment Response', res);
-                            document.getElementById('cybersource-card-processed-section').style.display = "block";
-                            document.getElementById('cybersource-card-details').style.display = "none";
-                            $('.__activeCheckNotice').hide();
                         }).catch(function (error) {
                             console.log(error);
                             throw error;
