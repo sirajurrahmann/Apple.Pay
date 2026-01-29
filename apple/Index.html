@@ -214,34 +214,33 @@
                             amount: 0.10
                         };
 
+                        const jsonString = JSON.stringify(event.payment.token.paymentData);
+                        const base64PaymentData = btoa(unescape(encodeURIComponent(jsonString)));
+
                         paymentData.digitalWallet = {
                             apple: {
-                                parameters: {
-                                    data : event.payment.data,
-                                    publicKeyHash: event.payment.publicKeyHash,
-                                    ephemeralPublicKey: event.payment.ephemeralPublicKey,
-                                },
+                                token: base64PaymentData,
+                                cardBrand: event.payment.token.paymentMethod.network,
                                 billingInfo: {
                                     name: {
-                                        firstName: billingContact.name.givenName,
-                                        lastName: billingContact.name.familyName
+                                        firstName: billingContact.givenName,
+                                        lastName: billingContact.familyName
                                     },
                                     address: {
-                                        line1: billingContact.addressLines[0],
-                                        line2: billingContact.addressLines[1],
-                                        line3: billingContact.addressLines[2],
-                                        line4: billingContact.addressLines[3],
+                                        line1: billingContact.addressLines?.[0],
+                                        line2: billingContact.addressLines?.[1],
+                                        line3: billingContact.addressLines?.[2],
+                                        line4: billingContact.addressLines?.[3],
                                         locality: billingContact.locality,
                                         administrativeArea: billingContact.administrativeArea,
                                         postalCode: billingContact.postalCode,
                                         country: billingContact.countryCode
                                     },
                                     email: {
-                                        address: billingContact.emailAddress
+                                        address: billingContact.email
                                     },
                                     telephone: {
-                                        country: billingContact.telephoneCountryCode,
-                                        number: billingContact.telephoneNumber
+                                        number: billingContact.phone
                                     }
                                 }
                             }
