@@ -151,7 +151,7 @@
                 const flowId = document.getElementById("flowId").value;
                 const scopeId = document.getElementById("scopeId").value;
                 console.log(server);
-                const apiUrl = server + apiPrefix + methodId + "/" + flowId + "/" + scopeId + "/validateapplepaymerchant";
+                const apiUrl = serverUrl ?? apiPrefix + methodId + "/" + flowId + "/" + scopeId + "/validateapplepaymerchant";
                 const response = await fetch(apiUrl, {
                     method: "POST",
                     headers: buildHeaders(),
