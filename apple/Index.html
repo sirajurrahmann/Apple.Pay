@@ -215,9 +215,10 @@
                         };
 
                         const jsonString = JSON.stringify(event.payment.token.paymentData);
-                        const base64PaymentData = btoa(unescape(encodeURIComponent(jsonString)));
+                        const base64PaymentData = btoa(jsonString);
 
                         paymentData.digitalWallet = {
+                            type: "apple",
                             apple: {
                                 token: base64PaymentData,
                                 cardBrand: event.payment.token.paymentMethod.network,
