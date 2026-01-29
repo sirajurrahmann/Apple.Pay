@@ -88,7 +88,9 @@
             flowId: '63290511-2c91-40ab-9028-809e1f2b9962',
             merchantId: 'merchant.cloud.n3o.testapp'
         };
-        const otherFields = [{ id: 'merchantId', label: 'Merchant Id', type: 'text', placeholder: 'Merchant Id', value: defaultFields.merchantId }];
+        const otherFields = [{ id: 'merchantId', label: 'Merchant Id', type: 'text', placeholder: 'Merchant Id', value: defaultFields.merchantId },
+        { id: 'hostUrl', label: 'host Url', type: 'text', placeholder: 'Host URl' }
+        ];
 
         renderGenericFields('config-section', defaultFields, otherFields);
 
@@ -114,6 +116,9 @@
            Start Apple Pay
         ------------------------------*/
         document.getElementById("applePayBtn").addEventListener("click", startApplePay);
+        document.getElementById('hostUrl').onchange = (event) => {
+            defaultFields.hostUrl = event.target.value;
+        }
 
         function startApplePay() {
             log("Apple Pay button clicked");
@@ -143,7 +148,7 @@
                     validationURL: event.validationURL
                 });
                 const params = new URLSearchParams(window.location.search);
-                const serverUrl = params.get("hostUrl");
+                const serverUrl = params.get("hostUrl") ?? defaultFields.hostUrl;
 
                 var server = serverUrl ?? document.getElementById("serverBase").value;
                 const apiPrefix = document.getElementById("apiPrefix").value;
