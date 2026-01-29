@@ -110,9 +110,9 @@ function buildEndpoint(path) {
 
 function buildHeaders(ignoreValidationWarnings) {
     const headers = {
-        'accept': 'application/json',
         'Content-Type': 'application/json',
-        'N3O-Ignore-Validation-Warnings': ignoreValidationWarnings ? 'true' : 'false'
+        'N3O-Ignore-Validation-Warnings': ignoreValidationWarnings ? 'true' : 'false',
+        'ngrok-skip-browser-warning': 'true'
     };
 
     const bearerTokenEl = document.getElementById('bearerToken');

@@ -80,8 +80,8 @@
 
     <script>
         const defaultFields = {
-            serverBase: 'https://6abe3b9116d9.ngrok-free.app',
-            apiPrefix: '/cybersource/v1.0/',
+            serverBase: 'https://c104d306fbc5.ngrok-free.app',
+            apiPrefix: 'https://c104d306fbc5.ngrok-free.app/cybersource/v1.0/',
             methodId: '2b3cc486-458f-4df5-98fb-6c6cfb4092f1',
             subscriptionId: '0000006e-0000-0000-0000-000000000000',
             scopeId: '8a9bd9c0-fb0d-47fc-b346-a08a48c7806f',
@@ -143,10 +143,10 @@
 
 
             session.onvalidatemerchant = async (event) => {
-
                 log("Merchant validation started", {
                     validationURL: event.validationURL
                 });
+
                 const params = new URLSearchParams(window.location.search);
                 const serverUrl = params.get("hostUrl") ?? defaultFields.hostUrl;
 
@@ -156,13 +156,14 @@
                 const flowId = document.getElementById("flowId").value;
                 const scopeId = document.getElementById("scopeId").value;
                 console.log(server);
-                const apiUrl = serverUrl ?? apiPrefix + methodId + "/" + flowId + "/" + scopeId + "/validateapplepaymerchant";
+                const apiUrl = serverUrl ?? apiPrefix + methodId + "/validateapplepaymerchant";
+
                 const response = await fetch(apiUrl, {
                     method: "POST",
                     headers: buildHeaders(),
                     body: JSON.stringify({
                         url: event.validationURL,
-                        initiativeContext: window.location.origin,
+                        initiativeContext: window.location.host,
                         initiative: "web"
                     })
                 }
@@ -179,7 +180,6 @@
                Payment Authorized
             ------------------------------*/
             session.onpaymentauthorized = async (event) => {
-
                 log("Payment authorized event received");
 
                 // FULL Apple Pay payment object
