@@ -201,7 +201,8 @@
 
                     const params = new URLSearchParams(window.location.search);
                     const serverUrl = params.get("hostUrl") ?? defaultFields.hostUrl;
-
+                    const apiPrefix = document.getElementById("apiPrefix").value;
+                    const methodId = document.getElementById("methodId").value;
                     const prettyJson = JSON.stringify(event.payment);
                     const apiUrl = serverUrl ?? apiPrefix + "payments/" + `${methodId}/${getGenericField('flowId')}/${getGenericField('scopeId')}`;
                     log("API URL for payment authorization", apiUrl);
