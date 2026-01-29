@@ -195,13 +195,12 @@
 
                 // Show JSON for copying
                 const prettyJson = JSON.stringify(event.payment);
-
-                const res = await processFlowPaymentAsync(` https://6abe3b9116d9.ngrok-free.app/cybersource/v1.0/payments/${methodId}/${getGenericField('flowId')}/${getGenericField('scopeId')}`,
-                    methodId, (paymentData) => {
+                const apiUrl = serverUrl ?? apiPrefix + "payments/" + `${methodId}/${getGenericField('flowId')}/${getGenericField('scopeId')}`;
+                const res = await processFlowPaymentAsync(apiUrl, (paymentData) => {
                         paymentData.idempotencyKey = '1233';
                         paymentData.value = {
-                            currency: 'GBP',
-                            amount: 10
+                            currency: 'USD',
+                            amount: 0.10
                         };
 
                         paymentData.digitalWallet = {
