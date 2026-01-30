@@ -16,30 +16,28 @@
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
 
-        #submit-tokenization {
-            margin-top: 15px;
-            background-color: #007bff;
-            color: white;
-            font-weight: bold;
-            transition: opacity 0.3s;
-        }
-
         body {
             font-family: Arial, sans-serif;
-            padding: 1rem;
-        }
-
-        input {
-            width: 100%;
-            padding: 10px;
-            box-sizing: border-box;
-            margin-bottom: 10px;
+            padding: 20px;
+            line-height: 1.4;
         }
 
         label {
             display: block;
-            margin-top: 10px;
-            font-weight: bold;
+            margin: 8px 0 6px;
+            font-weight: 600;
+        }
+
+        input,
+        select,
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            background: #fff;
         }
 
         #hosted-token-frame {
@@ -52,8 +50,17 @@
             padding: .8rem;
             width: 100%;
             background: #007bff;
-            color: white;
+            color: #fff;
             border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            transition: opacity .3s, background-color .2s;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            opacity: .7;
+            cursor: not-allowed;
         }
 
         #log {
@@ -65,6 +72,15 @@
             white-space: pre-wrap;
             font-size: 13px;
         }
+
+        iframe[name='htpIframe0'] {
+            border: none;
+            width: 100%;
+        }
+
+        .cybersource-card-input {
+            height: 3rem;
+        }
     </style>
 </head>
 
@@ -75,13 +91,8 @@
 
     <br />
     <div>
-        <input type="hidden" id="cybersourceToken" name="@Model.FieldName" value="" />
-        <style>
-            iframe[name=htpIframe0] {
-                border: none;
-                width: 100%;
-            }
-        </style>
+        <input type="hidden" id="cybersourceToken" name="cybersourceToken" value="" />
+
         <div class="row">
             <div class="col-sm-16 col-md-16" id="cybersource-card-details">
                 <div id="errors-output" role="alert"></div>
@@ -99,45 +110,23 @@
                 <form action="/token" id="my-sample-form" method="post">
                     <div class="form-group">
                         <label for="cardholderName">Name</label>
-                        <input id="cardholderName" class="form-control" name="cardholderName"
-                            placeholder="Name on the card">
+                        <input id="cardholderName" class="form-control cybersource-card-input" name="cardholderName"
+                            autocomplete="cc-name" placeholder="Name on the card"/>
                         <label id="cardNumber-label">Card Number</label>
-                        <div id="number-container" class="form-control"></div>
+                        <div id="number-container" class="form-control cybersource-card-input" autocomplete="cc-number">
+                        </div>
                         <label for="securityCode-container">Security Code</label>
-                        <div id="securityCode-container" class="form-control"></div>
+                        <div id="securityCode-container" class="form-control cybersource-card-input"
+                            autocomplete="cc-csc"></div>
                     </div>
 
-                    <div class="form-row">
-                        <div class="form-group col-md-6">
-                            <label for="expMonth">Expiry month</label>
-                            <select id="expMonth" class="form-control">
-                                <option>01</option>
-                                <option>02</option>
-                                <option>03</option>
-                                <option>04</option>
-                                <option>05</option>
-                                <option>06</option>
-                                <option>07</option>
-                                <option>08</option>
-                                <option>09</option>
-                                <option>10</option>
-                                <option>11</option>
-                                <option>12</option>
-                            </select>
-                        </div>
-                        <div class="form-group col-md-6">
-                            <label for="expYear">Expiry year</label>
-                            <select id="expYear" class="form-control">
-                                <option>2021</option>
-                                <option>2022</option>
-                                <option>2023</option>
-                            </select>
-                        </div>
+                    <div class="form-group">
+                        <label for="exp">Expiry (MM/YY)</label>
+                        <input id="exp" class="form-control" autocomplete="cc-exp" placeholder="MM/YY" />
                     </div>
 
                     <button type="button" id="pay-button" class="btn btn-primary">Pay</button>
                     <input type="hidden" id="flexresponse" name="flexresponse">
-                </form>
             </div>
 
             <h3>Log Output</h3>
@@ -146,8 +135,7 @@
             <script>
                 // 1. Render Configuration Fields
                 renderGenericFields('config-section', {
-                    serverBase: 'http://localhost:14442/',
-                    apiPrefix: '/cybersource/v1.0/',
+                    apiPrefix: 'http://localhost:14442/cybersource/v1.0/',
                     methodId: '2b3cc486-458f-4df5-98fb-6c6cfb4092f1',
                     // methodId: 'a9f6f6e4-01a7-4fe1-bec7-cd2c6e705c88',
                     subscriptionId: '0000006e-0000-0000-0000-000000000000',
@@ -161,26 +149,14 @@
                     initTokenization();
                 });
 
-                function showThreeDSecureIframe(opayoTransactionId, threeDSecureV2) {
-                    document.getElementById('hosted-payments-container').hidden = true;
-                    document.getElementById('threeDSecureIframeDiv').hidden = false;
-
-                    let form = document.getElementById('opayo-threeD-secure-iframe-form');
-                    form.action = threeDSecureV2.acsUrl;
-
-                    form[0].value = threeDSecureV2.cReq;
-                    form[1].value = opayoTransactionId;
-                    form[2].value = threeDSecureV2.acsTransId;
-
-                    form.submit();
-                }
-
                 async function initTokenization() {
                     setLoading('submit-tokenization', true, 'Initializing SDK...');
                     const methodId = getMethodId();
+                    const apiPrefix = document.getElementById("apiPrefix").value;
+                    var server = document.getElementById("serverBase").value;
+                    const apiUrl = apiPrefix + `${methodId}/captureContext`;
 
-                    // NOTE: Assuming Opayo has a similar hosted tokenization session endpoint
-                    const res = await fetch(buildEndpoint(`/${methodId}/captureContext`), {
+                    const res = await fetch(apiUrl, {
                         method: 'POST',
                         headers: buildHeaders(false),
                         body: JSON.stringify({
@@ -204,11 +180,9 @@
 
                 function onScriptLoaded(captureContext) {
                     // Variables from the HTML form 
-                    const form = document.querySelector('#my-sample-form');
                     const payButton = document.querySelector('#pay-button');
                     const flexResponse = document.querySelector('#flexresponse');
-                    const expMonth = document.querySelector('#expMonth');
-                    const expYear = document.querySelector('#expYear');
+                    const exp = document.querySelector('#exp');
                     const errorsOutput = document.querySelector('#errors-output');
 
                     const myStyles = {
@@ -217,7 +191,6 @@
                             'font-family': 'helvetica, tahoma, calibri, sans-serif',
                             'color': '#555'
                         },
-                        ':focus': { 'color': 'blue' },
                         ':disabled': { 'cursor': 'not-allowed' },
                         'valid': { 'color': '#3c763d' },
                         'invalid': { 'color': '#a94442' }
@@ -233,63 +206,58 @@
                     securityCode.load('#securityCode-container');
 
 
-                    // Configuring a Listener for the Pay button	
                     payButton.addEventListener('click', function () {
-
-                        // Compiling MM & YY into optional parameters	 
-                        const options = {
-                            expirationMonth: document.querySelector('#expMonth').value,
-                            expirationYear: document.querySelector('#expYear').value
-                        };
-                        //  
-                        microform.createToken(options, function (err, token) {
+                        const expVal = document.querySelector('#exp').value.trim();
+                        const match = expVal.match(/^(\d{2})\/(\d{2}|\d{4})$/);
+                        if (!match) {
+                            errorsOutput.textContent = 'Invalid expiry format. Use MM/YY';
+                            return;
+                        }
+                        const mm = match[1];
+                        let yy = match[2];
+                        if (yy.length === 2) { yy = '20' + yy; }
+                        const monthNum = parseInt(mm, 10);
+                        if (isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
+                            errorsOutput.textContent = 'Invalid expiry month';
+                            return;
+                        }
+                        const options = { expirationMonth: mm, expirationYear: yy };
+                        microform.createToken(options, async function (err, token) {
                             if (err) {
-                                // handle error
                                 console.error(err);
                                 errorsOutput.textContent = err.message;
                             } else {
-                                // At this point you may pass the token back to your server as you wish.
-                                // In this example we append a hidden input to the form and submit it.      
+                                const apiPrefix = document.getElementById("apiPrefix").value;
+                                const methodId = document.getElementById("methodId").value;
+                                var server = document.getElementById("serverBase").value;
+                                const apiUrl = apiPrefix + "payments/" + `${methodId}/${getGenericField('flowId')}/${getGenericField('scopeId')}`;
+
                                 console.log(JSON.stringify(token));
                                 flexResponse.value = JSON.stringify(token);
-                                form.submit();
+                                try {
+                                    const res = await processFlowPaymentAsync(apiUrl,
+                                        methodId, (paymentData) => {
+                                            paymentData.idempotencyKey = '1233';
+                                            paymentData.value = {
+                                                currency: 'GBP',
+                                                amount: 10
+                                            },
+                                                paymentData.threeDSecure = {
+                                                    ...browserInfo
+                                                };
+                                            paymentData.token = token;
+
+                                            log('Payment Data', paymentData);
+                                        });
+
+
+                                    log('Payment Response', res);
+                                } catch (error) {
+                                    console.log(error);
+                                }
                             }
                         });
                     });
-                    Accept(session)
-                        .then(function (accept) {
-                            console.log(accept)
-                            // false indicates to render it in embedded component instead of sidebar 
-                            return accept.unifiedPayments(false);
-                        })
-                        .then(function (up) {
-                            return up.show(showArgs);
-                        })
-                        .then(async function (token) {
-                            const res = await processFlowPaymentAsync(`http://localhost:14442/opayo/v1.0/payments/${methodId}/${getGenericField('flowId')}/${getGenericField('scopeId')}`,
-                                methodId, (paymentData) => {
-                                    paymentData.idempotencyKey = '1233';
-                                    paymentData.value = {
-                                        currency: 'GBP',
-                                        amount: 10
-                                    },
-                                        paymentData.threeDSecure = {
-                                            ...browserInfo
-                                        };
-                                    paymentData.card = {
-                                        merchantSessionKey: merchantSessionKey.key,
-                                        identifier: tokenisationResult.cardIdentifier
-                                    };
-
-                                    log('Payment Data', paymentData);
-                                });
-
-
-                            log('Payment Response', res);
-                        }).catch(function (error) {
-                            console.log(error);
-                            throw error;
-                        });
                 }
             </script>
 </body>
