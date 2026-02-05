@@ -6,9 +6,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Cybersource</title>
     <script src="../js/common.js"></script>
-    <script src="https://assets.opayo.cloud/assets/js/opayo-1.2.40.js"
-        integrity="sha512-ZplJXUTeRh13LTLjfwydrUFpRJaHOoSIKdoMQP4s1gWyJoXqsTqxBeGdt4fQyfNq/Xo21u8IGaA3PjLfiefZJw=="
-        crossorigin="anonymous"></script>
+
     <style>
         #hosted-payments-container iframe {
             border-radius: 8px;
@@ -111,7 +109,7 @@
                     <div class="form-group">
                         <label for="cardholderName">Name</label>
                         <input id="cardholderName" class="form-control cybersource-card-input" name="cardholderName"
-                            autocomplete="cc-name" placeholder="Name on the card"/>
+                            autocomplete="cc-name" placeholder="Name on the card" />
                         <label id="cardNumber-label">Card Number</label>
                         <div id="number-container" class="form-control cybersource-card-input" autocomplete="cc-number">
                         </div>
@@ -127,16 +125,84 @@
 
                     <button type="button" id="pay-button" class="btn btn-primary">Pay</button>
                     <input type="hidden" id="flexresponse" name="flexresponse">
+                </form>
             </div>
 
             <h3>Log Output</h3>
             <div id="log"></div>
 
+            <div id="3ds">
+                <iframe id="cardinal_collection_iframe" name="collectionIframe" height="10" width="10"
+                    style="display: none;"></iframe>
+                <form id="cardinal_collection_form" method="POST" target="collectionIframe" action="">
+                    <input id="cardinal_collection_form_input" type="hidden" name="JWT" value="">
+                </form>
+
+            </div>
+
             <script>
+
+                const integerate3dsIframe = (deviceDataCollectionUrl, accessToken) => {
+                    document.getElementById('hosted-payments-container').hidden = true;
+                    document.getElementById('threeDSecureIframeDiv').hidden = false;
+
+                    let form = document.getElementById('ardinal_collection_form');
+                    form.action = deviceDataCollectionUrl;
+
+                    form[0].value = accessToken;
+
+                    form.submit();
+                }
+
+                const checkPayerAuthentication = async (token) => {
+                    const apiPrefix = document.getElementById("apiPrefix").value;
+                    const methodId = document.getElementById("methodId").value;
+                    const apiUrl = apiPrefix + `${methodId}/payerAuthentication`;
+
+                    const res = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: buildHeaders(false),
+                        body: JSON.stringify({
+                            token: token
+                        })
+                    }).then(res => res.json());
+                }
+
+                const processPayment = async (token) => {
+                    const apiPrefix = document.getElementById("apiPrefix").value;
+                    const methodId = document.getElementById("methodId").value;
+                    const apiUrl = apiPrefix + "payments/" +
+                        `${methodId}/${getGenericField('flowId')}/${getGenericField('scopeId')}`;
+
+                    console.log(JSON.stringify(token));
+                    flexResponse.value = JSON.stringify(token);
+                    try {
+                        const res = await processFlowPaymentAsync(apiUrl,
+                            methodId, (paymentData) => {
+                                paymentData.idempotencyKey = '1233';
+                                paymentData.value = {
+                                    currency: 'GBP',
+                                    amount: 1000
+                                },
+                                    paymentData.threeDSecure = {
+                                        ...browserInfo
+                                    };
+                                paymentData.token = token;
+
+                                log('Payment Data', paymentData);
+                            });
+
+
+                        log('Payment Response', res);
+                    } catch (error) {
+                        log('Payment Error', error);
+                    }
+                }
+
                 // 1. Render Configuration Fields
                 renderGenericFields('config-section', {
-                    apiPrefix: 'http://localhost:14442/cybersource/v1.0/',
-                    methodId: '2b3cc486-458f-4df5-98fb-6c6cfb4092f1',
+                    apiPrefix: getEnv('CYBERSOURCE_BASE_URL_ID') || 'http://localhost:14442/cybersource/v1.0/',
+                    methodId: getEnv('CYBERSOURCE_METHOD_ID') || '2b3cc486-458f-4df5-98fb-6c6cfb4092f1',
                     // methodId: 'a9f6f6e4-01a7-4fe1-bec7-cd2c6e705c88',
                     subscriptionId: '0000006e-0000-0000-0000-000000000000',
                     // scopeId: '4c3a230a-72ad-4bdf-a602-38ad9ce48b1d',
@@ -153,7 +219,6 @@
                     setLoading('submit-tokenization', true, 'Initializing SDK...');
                     const methodId = getMethodId();
                     const apiPrefix = document.getElementById("apiPrefix").value;
-                    var server = document.getElementById("serverBase").value;
                     const apiUrl = apiPrefix + `${methodId}/captureContext`;
 
                     const res = await fetch(apiUrl, {
@@ -178,8 +243,28 @@
                     loadJS(result.url, true, () => onScriptLoaded(result.key), result.clientLibraryIntegrity);
                 }
 
+                const getExpireOn = () => {
+                    const expVal = document.querySelector('#exp').value.trim();
+                    const match = expVal.match(/^(\d{2})\/(\d{2}|\d{4})$/);
+                    if (!match) {
+                        errorsOutput.textContent = 'Invalid expiry format. Use MM/YY';
+                        return;
+                    }
+                    const mm = match[1];
+                    let yy = match[2];
+                    if (yy.length === 2) { yy = '20' + yy; }
+                    const monthNum = parseInt(mm, 10);
+                    if (isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
+                        errorsOutput.textContent = 'Invalid expiry month';
+                        return;
+                    }
+                    const options = { expirationMonth: mm, expirationYear: yy };
+
+                    return options;
+                }
+
                 function onScriptLoaded(captureContext) {
-                    // Variables from the HTML form 
+                    // Variables from the HTML form
                     const payButton = document.querySelector('#pay-button');
                     const flexResponse = document.querySelector('#flexresponse');
                     const exp = document.querySelector('#exp');
@@ -197,68 +282,68 @@
                     };
                     const flex = new Flex(captureContext);
                     window.flex = flex;
-                    const microform = flex.microform({ styles: myStyles });
+                    const microform = flex.microform("card", { styles: myStyles });
                     window.microform = microform;
 
                     const number = microform.createField('number', { placeholder: 'Enter card number' });
-                    const securityCode = microform.createField('securityCode', { placeholder: '•••' });
+                    const securityCode = microform.createField('securityCode', { placeholder: 'Enter Security Code' });
                     number.load('#number-container');
                     securityCode.load('#securityCode-container');
+                    number.on('autocomplete', function () {
+                        console.log('autocomplete received');
+                    });
+
+                    securityCode.on('autocomplete', function () {
+                        console.log('autocomplete received');
+                    });
+
+                    number.on('focus', function (e) {
+                    });
+
+                    securityCode.on('focus', function (e) {
+                    });
 
 
                     payButton.addEventListener('click', function () {
-                        const expVal = document.querySelector('#exp').value.trim();
-                        const match = expVal.match(/^(\d{2})\/(\d{2}|\d{4})$/);
-                        if (!match) {
-                            errorsOutput.textContent = 'Invalid expiry format. Use MM/YY';
-                            return;
-                        }
-                        const mm = match[1];
-                        let yy = match[2];
-                        if (yy.length === 2) { yy = '20' + yy; }
-                        const monthNum = parseInt(mm, 10);
-                        if (isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
-                            errorsOutput.textContent = 'Invalid expiry month';
-                            return;
-                        }
-                        const options = { expirationMonth: mm, expirationYear: yy };
+                        const options = getExpireOn();
+
                         microform.createToken(options, async function (err, token) {
                             if (err) {
                                 console.error(err);
-                                errorsOutput.textContent = err.message;
+                                switch (err.reason) {
+                                    case 'CREATE_TOKEN_NO_FIELDS_LOADED':
+                                        break;
+                                    case 'CREATE_TOKEN_TIMEOUT':
+                                        break;
+                                    case 'CREATE_TOKEN_NO_FIELDS':
+                                        break;
+                                    case 'CREATE_TOKEN_VALIDATION_PARAMS':
+                                        break;
+                                    case 'CREATE_TOKEN_VALIDATION_FIELDS':
+                                        break;
+                                    case 'CREATE_TOKEN_VALIDATION_SERVERSIDE':
+                                        break;
+                                    case 'CREATE_TOKEN_UNABLE_TO_START':
+                                        break;
+                                    default:
+                                        console.error('Unknown error');
+                                        break;
+                                        errorsOutput.textContent = err.message;
+                                }
                             } else {
-                                const apiPrefix = document.getElementById("apiPrefix").value;
-                                const methodId = document.getElementById("methodId").value;
-                                var server = document.getElementById("serverBase").value;
-                                const apiUrl = apiPrefix + "payments/" + `${methodId}/${getGenericField('flowId')}/${getGenericField('scopeId')}`;
+                                const authenticationResult = await checkPayerAuthentication(token).then(res => res.json());
 
-                                console.log(JSON.stringify(token));
-                                flexResponse.value = JSON.stringify(token);
-                                try {
-                                    const res = await processFlowPaymentAsync(apiUrl,
-                                        methodId, (paymentData) => {
-                                            paymentData.idempotencyKey = '1233';
-                                            paymentData.value = {
-                                                currency: 'GBP',
-                                                amount: 10
-                                            },
-                                                paymentData.threeDSecure = {
-                                                    ...browserInfo
-                                                };
-                                            paymentData.token = token;
-
-                                            log('Payment Data', paymentData);
-                                        });
-
-
-                                    log('Payment Response', res);
-                                } catch (error) {
-                                    console.log(error);
+                                if (authenticationResult.result && authenticationResult.result.isRequired) {
+                                    integerate3dsIframe(authenticationResult.result.deviceDataCollectionUrl, authenticationResult.result.accessToken);
+                                } else {
+                                    processPayment(token);
                                 }
                             }
                         });
                     });
                 }
+
+
             </script>
 </body>
 

@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Cybersource</title>
+    <script src="../js/common.js"></script>
+
+    <style>
+        #hosted-payments-container iframe {
+            border-radius: 8px;
+            height: 450px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            line-height: 1.4;
+        }
+
+        label {
+            display: block;
+            margin: 8px 0 6px;
+            font-weight: 600;
+        }
+
+        input,
+        select,
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            background: #fff;
+        }
+
+        #hosted-token-frame {
+            width: 100%;
+            height: 400px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            padding: .8rem;
+            width: 100%;
+            background: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            transition: opacity .3s, background-color .2s;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            opacity: .7;
+            cursor: not-allowed;
+        }
+
+        #log {
+            border: 1px solid #ccc;
+            padding: 10px;
+            height: 250px;
+            overflow-y: auto;
+            background: #f9f9f9;
+            white-space: pre-wrap;
+            font-size: 13px;
+        }
+
+        iframe[name='htpIframe0'] {
+            border: none;
+            width: 100%;
+        }
+
+        .cybersource-card-input {
+            height: 3rem;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Cybersource Unified Checkout</h1>
+
+    <div id="config-section"></div>
+
+    <br />
+    <div>
+        <input type="hidden" id="cybersourceToken" name="cybersourceToken" value="" />
+
+        <div class="row">
+            <div class="col-sm-16 col-md-16" id="cybersource-card-details">
+                <div id="errors-output" role="alert"></div>
+                <div id="buttonPaymentListContainer"></div>
+                <div id="embeddedPaymentContainer"></div>
+            </div>
+
+            <div class="text-center" hidden="hidden" id="cybersource-card-processed-section">
+                Payment card entered successfully, please continue to complete checkout
+            </div>
+
+            <div>
+                <h1>Checkout Page</h1>
+                <div id="errors-output" role="alert"></div>
+                <form action="/token" id="my-sample-form" method="post">
+                    <div class="form-group">
+                        <label id="routingNumber-label">Routing Number</label>
+                        <div id="routingNumber-container" class="form-control"></div>
+                        <label for="accountNumber-label">Account Number</label>
+                        <div id="accountNumber-container" class="form-control"></div>
+                        <label for="accountNumberConfirm-label">Account Number Confirm</label>
+                        <div id="accountNumberConfirm-container" class="form-control"></div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label for="accountType">Account Type</label>
+                            <select id="accountType" name="accountType" class="form-control">
+                                <option value="C">Checking</option>
+                                <option value="S">Savings</option>
+                                <option value="X">Corporate checking</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button type="button" id="pay-button" class="btn btn-primary">Pay</button>
+                    <input type="hidden" id="flexresponse" name="flexresponse">
+                </form>
+                </form>
+            </div>
+
+            <h3>Log Output</h3>
+            <div id="log"></div>
+
+            <iframe name="step-up-iframe" height="400" width="400"></iframe>
+            <form id="step-up-form" target="step-up-iframe" method="post"
+                action=" https://centinelapistag.cardinalcommerce.com/V2/Cruise/StepUp">
+                <input type="hidden" name="JWT" value="" />
+                <input type="hidden" name="MD" value="o" />
+            </form>
+
+            <script>
+                // 1. Render Configuration Fields
+                renderGenericFields('config-section', {
+                    apiPrefix: getEnv('CYBERSOURCE_BASE_URL_ID') || 'http://localhost:14442/cybersource/v1.0/',
+                    methodId: getEnv('CYBERSOURCE_METHOD_ID') || '2b3cc486-458f-4df5-98fb-6c6cfb4092f1',
+                    // methodId: 'a9f6f6e4-01a7-4fe1-bec7-cd2c6e705c88',
+                    subscriptionId: '0000006e-0000-0000-0000-000000000000',
+                    // scopeId: '4c3a230a-72ad-4bdf-a602-38ad9ce48b1d',
+                    scopeId: '8a9bd9c0-fb0d-47fc-b346-a08a48c7806f',
+                    // flowId: 'bc7bb42a-0c89-4cdb-a71f-0ca2ac9e88fa'
+                    flowId: '63290511-2c91-40ab-9028-809e1f2b9962'
+                });
+
+                document.addEventListener("DOMContentLoaded", () => {
+                    initTokenization();
+                });
+
+                async function initTokenization() {
+                    setLoading('submit-tokenization', true, 'Initializing SDK...');
+                    const methodId = getMethodId();
+                    const apiPrefix = document.getElementById("apiPrefix").value;
+                    const apiUrl = apiPrefix + `${methodId}/captureContext`;
+
+                    const res = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: buildHeaders(false),
+                        body: JSON.stringify({
+                            origin: window.location.origin,
+                            value: {
+                                "currency": "USD",
+                                "amount": 0.50,
+                            }
+                        })
+                    });
+
+                    if (!res.ok) {
+                        log("Error initializing tokenization session", await res.text());
+                        setLoading('submit-tokenization', false);
+                        return;
+                    }
+                    const { result, error } = await res.json();
+
+                    loadJS(result.url, true, () => onScriptLoaded(result.key), result.clientLibraryIntegrity);
+                }
+
+                function onScriptLoaded(captureContext) {
+                    // Variables from the HTML form
+                    const payButton = document.querySelector('#pay-button');
+                    const flexResponse = document.querySelector('#flexresponse');
+                    const exp = document.querySelector('#exp');
+                    const errorsOutput = document.querySelector('#errors-output');
+
+                    const myStyles = {
+                        'input': {
+                            'font-size': '14px',
+                            'font-family': 'helvetica, tahoma, calibri, sans-serif',
+                            'color': '#555'
+                        },
+                        ':disabled': { 'cursor': 'not-allowed' },
+                        'valid': { 'color': '#3c763d' },
+                        'invalid': { 'color': '#a94442' }
+                    };
+                    const flex = new Flex(captureContext);
+                    window.flex = flex;
+                    const microform = flex.microform({ styles: myStyles });
+                    window.microform = microform;
+
+                    const routingNumber = microform.createField("routingNumber", { placeholder: "Enter routing number" });
+                    const accountNumber = microform.createField("accountNumber", { placeholder: "Enter account number" });
+                    const accountNumberConfirm = microform.createField("accountNumberConfirm", { placeholder: "accountNumberConfirm" });
+
+                    routingNumber.load('#routingNumber-container');
+                    accountNumber.load('#accountNumber-container');
+                    accountNumberConfirm.load('#accountNumberConfirm-container');
+
+
+                    payButton.addEventListener('click', function () {
+                        const expVal = document.querySelector('#exp').value.trim();
+                        const match = expVal.match(/^(\d{2})\/(\d{2}|\d{4})$/);
+                        if (!match) {
+                            errorsOutput.textContent = 'Invalid expiry format. Use MM/YY';
+                            return;
+                        }
+                        const mm = match[1];
+                        let yy = match[2];
+                        if (yy.length === 2) { yy = '20' + yy; }
+                        const monthNum = parseInt(mm, 10);
+                        if (isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
+                            errorsOutput.textContent = 'Invalid expiry month';
+                            return;
+                        }
+                        const options = { expirationMonth: mm, expirationYear: yy };
+                        microform.createToken(options, async function (err, token) {
+                            if (err) {
+                                console.error(err);
+                                errorsOutput.textContent = err.message;
+                            } else {
+                                const apiPrefix = document.getElementById("apiPrefix").value;
+                                const methodId = document.getElementById("methodId").value;
+                                const apiUrl = apiPrefix + "payments/" +
+                                    `${methodId}/${getGenericField('flowId')}/${getGenericField('scopeId')}`;
+
+                                console.log(JSON.stringify(token));
+                                flexResponse.value = JSON.stringify(token);
+                                try {
+                                    const res = await processFlowPaymentAsync(apiUrl,
+                                        methodId, (paymentData) => {
+                                            paymentData.idempotencyKey = '1233';
+                                            paymentData.value = {
+                                                currency: 'GBP',
+                                                amount: 10
+                                            },
+                                                paymentData.threeDSecure = {
+                                                    ...browserInfo
+                                                };
+                                            paymentData.token = token;
+
+                                            log('Payment Data', paymentData);
+                                        });
+
+
+                                    log('Payment Response', res);
+                                } catch (error) {
+                                    console.log(error);
+                                }
+                            }
+                        });
+                    });
+                }
+            </script>
+</body>
+
+</html>

@@ -121,7 +121,7 @@ function buildHeaders(ignoreValidationWarnings) {
         headers['Authorization'] = bearer;
     }
 
-    const subscriptionId = (document.getElementById('subscriptionId')?.value || '').trim();
+    const subscriptionId = getEnv('SUBSCRIPTION_ID') || (document.getElementById('subscriptionId')?.value || '').trim();
     if (subscriptionId) {
         headers['N3O-Subscription-Id'] = subscriptionId;
     }
@@ -276,10 +276,9 @@ function renderGenericFields(containerId, defaults = {}, moreFields = []) {
     if (!container) return;
 
     const fields = [
-        { id: 'serverBase', label: 'Server Base', type: 'url', value: defaults.serverBase || 'http://localhost:25713' },
         { id: 'apiPrefix', label: 'API Prefix', type: 'text', value: defaults.apiPrefix || '' },
         { id: 'methodId', label: 'Method ID', type: 'text', value: defaults.methodId || getEnv('METHOD_ID') || '' },
-        { id: 'subscriptionId', label: 'Subscription ID', type: 'text', value: defaults.subscriptionId || getEnv('SUBSCRIPTION_ID') || '00000006-0000-0000-0000-000000000000' },
+        { id: 'subscriptionId', label: 'Subscription ID', type: 'text', value: getEnv('SUBSCRIPTION_ID'), value: defaults.subscriptionId },
         { id: 'bearerToken', label: 'Bearer Token', type: 'text', placeholder: 'Authorization (Bearer ...)', value: defaults.bearerToken || '' },
         { id: 'flowId', label: 'flow Id', type: 'text', placeholder: 'Flow Id', value: defaults.flowId || '' },
         { id: 'scopeId', label: 'scope Id', type: 'text', placeholder: 'Scope Id', value: defaults.scopeId || '' },
@@ -299,11 +298,9 @@ function renderGenericFields(containerId, defaults = {}, moreFields = []) {
     container.innerHTML = html;
 }
 
-// -------------------------------------------------------------------
-// Simple .env Loader
-// -------------------------------------------------------------------
-
 let AppEnv = null;
+
+loadEnv();
 
 function parseEnv(text) {
     const env = {};
@@ -344,7 +341,7 @@ function getEnv(key, fallback) {
 
 
 function processFlowPaymentAsync(url, methodId, requestAction) {
-    const flowParameters = {
+    let flowParameters = {
         flowId: "",
         flowRevision: 1,
         scopeId: '',
@@ -356,8 +353,8 @@ function processFlowPaymentAsync(url, methodId, requestAction) {
 
     const paymentData = {
         account: account,
-        Parameters: flowParameters,
-        Request: {
+        parameters: flowParameters,
+        request: {
             date: '2025-12-22',
             value: {
                 currency: 'GBP',

@@ -97,18 +97,19 @@
     <div id="log"></div>
 
     <script>
+        // /c82a457d-994e-496b-bf82-52b9fc1c61c5/63290511-2c91-40ab-9028-809e1f2b9963/2a6b8094-0d4a-4beb-b2e5-485b8a5880ed/process
         // 1. Render Configuration Fields
-            renderGenericFields('config-section', {
-            serverBase: 'https://beta.n3o.cloud/eu1/api',
-            apiPrefix: '/checkout/opayo/v1.0/payments/',
+        renderGenericFields('config-section', {
+            apiPrefix: getEnv('OPAYO_BASE_URL_ID') || 'http://localhost:14442/opayo/v1.0/',
             methodId: '6545d794-2a91-483c-8a5d-97e04bdc6011',
             // methodId: 'a9f6f6e4-01a7-4fe1-bec7-cd2c6e705c88',
             subscriptionId: '0000006e-0000-0000-0000-000000000000',
-            // scopeId: '4c3a230a-72ad-4bdf-a602-38ad9ce48b1d',
-                scopeId: '8a9bd9c0-fb0d-47fc-b346-a08a48c7806f',
+            flowId: '63290511-2c91-40ab-9028-809e1f2b9963',
+            // scopeId: '8a9bd9c0-fb0d-47fc-b346-a08a48c7806f',
             // flowId: 'bc7bb42a-0c89-4cdb-a71f-0ca2ac9e88fa'
-                flowId: '63290511-2c91-40ab-9028-809e1f2b9962'
-            });
+            // flowId: '63290511-2c91-40ab-9028-809e1f2b9962'
+            scopeId: '2a6b8094-0d4a-4beb-b2e5-485b8a5880ed'
+        });
 
         document.addEventListener("DOMContentLoaded", () => {
             initTokenization();
@@ -132,8 +133,9 @@
             setLoading('submit-tokenization', true, 'Initializing SDK...');
             const methodId = getMethodId();
 
-            // NOTE: Assuming Opayo has a similar hosted tokenization session endpoint
-            const res = await fetch(buildEndpoint(`${methodId}/checkout`), {
+            const apiPrefix = document.getElementById("apiPrefix").value;
+            const apiUrl = apiPrefix + `payments/${methodId}/merchantsessionkey`;
+            const res = await fetch(apiUrl, {
                 method: 'POST',
                 headers: buildHeaders(false),
             });
@@ -148,8 +150,16 @@
             log("Intialized with ", key);
 
             try {
-                OpayoConfig.restHost = 'https://sandbox.opayo.eu.elavon.com'
-                OpayoConfig.restBaseURL = ' https://sandbox.opayo.eu.elavon.com/api/v1'
+                const setConfig = () => {
+                    OpayoConfig.restHost = 'https://sandbox.opayo.eu.elavon.com'
+                    OpayoConfig.restBaseURL = ' https://sandbox.opayo.eu.elavon.com/api/v1'
+                }
+                if (!OpayoConfig) {
+                    setTimeout(() => { setConfig() }, 1000);
+                } else {
+                    setConfig();
+                }
+
 
                 const checkout = opayoCheckout({
                     merchantSessionKey: key,
@@ -172,20 +182,27 @@
                         if (tokenisationResult.success) {
                             log('CardIdentifier', tokenisationResult.cardIdentifier);
 
-                            const res = await processFlowPaymentAsync(`https://beta.n3o.cloud/eu1/api/checkout/opayo/v1.0/payments/${methodId}/${getGenericField('flowId')}/${getGenericField('scopeId')}`,
+                            //const res = await processFlowPaymentAsync(`https://beta.n3o.cloud/eu1/api/checkout/opayo/v1.0/payments/${methodId}/${getGenericField('flowId')}/${getGenericField('scopeId')}`,
+                            const res = await processFlowPaymentAsync(`http://localhost:14442/opayo/v1.0/credentials/${methodId}/${getGenericField('flowId')}/${getGenericField('scopeId')}`,
+                                // const res = await processFlowPaymentAsync(`http://localhost:25713/opayo/v1.0/${methodId}/flow/payment`,
                                 methodId, (paymentData) => {
-                                    paymentData.idempotencyKey = '1233';
-                                    paymentData.value = {
-                                        currency: 'GBP',
-                                        amount: 10
-                                    },
-                                        paymentData.threeDSecure = {
-                                            ...browserInfo
-                                        };
+                                    paymentData.setupPayment = {
+                                        activeCheckOnly: true,
+                                        value: {
+                                            currency: 'GBP',
+                                            amount: 10
+                                        }
+                                    };
+
+                                    paymentData.threeDSecure = {
+                                        ...browserInfo
+                                    };
                                     paymentData.card = {
                                         merchantSessionKey: key,
                                         identifier: tokenisationResult.cardIdentifier
                                     };
+
+                                    // paymentData.parameters.baseUrl = 'http://127.0.0.1:25713/';
 
                                     log('Payment Data', paymentData);
                                 });
