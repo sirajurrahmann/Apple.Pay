@@ -137,21 +137,62 @@
                 <form id="cardinal_collection_form" method="POST" target="collectionIframe" action="">
                     <input id="cardinal_collection_form_input" type="hidden" name="JWT" value="">
                 </form>
-
             </div>
 
             <script>
+                const createIframe = (id, name, height, width, target, jwt, action, formAction = (x) => { }, onloaded = () => { }) => {
+                    const iframe = document.createElement("iframe");
+                    iframe.id = id;
+                    iframe.name = name;
+                    iframe.width = width;
+                    iframe.height = height;
+                    iframe.style.border = "none";
 
-                const integerate3dsIframe = (deviceDataCollectionUrl, accessToken) => {
-                    document.getElementById('hosted-payments-container').hidden = true;
-                    document.getElementById('threeDSecureIframeDiv').hidden = false;
+                    document.body.appendChild(iframe);
+                    const form = document.createElement("form");
+                    form.id = `${id}-form`;
+                    form.method = "POST";
+                    form.action = action;
+                    form.target = target || name;
 
-                    let form = document.getElementById('ardinal_collection_form');
-                    form.action = deviceDataCollectionUrl;
+                    const jwtInput = document.createElement("input");
+                    jwtInput.type = "hidden";
+                    jwtInput.name = "JWT";
+                    jwtInput.value = jwt;
 
-                    form[0].value = accessToken;
+                    form.appendChild(jwtInput);
 
+                    if (formAction && formAction.type === 'function') {
+                        formAction(form);
+                    }
+
+                    document.body.appendChild(form);
+
+                    iframe.addEventListener("load", () => {
+                        onloaded();
+
+                        console.log("3DS Step-Up page loaded.");
+                    });
+
+                    // 7. Submit form into iframe
                     form.submit();
+                };
+
+                const deviceDataCollected = () => {
+                    if (event.origin.indexOf("cardinalcommerce.com") > -1) {
+                        let data = JSON.parse(event.data);
+
+                        console.log('Merchant received a message:', data)
+
+                        if (window.currentPaymentToken) {
+                            console.log("Proceeding to payment...");
+                            document.getElementById('3ds').style.display = 'none';
+
+                            processPayment(window.currentPaymentToken);
+
+                            window.currentPaymentToken = null;
+                        }
+                    }
                 }
 
                 const checkPayerAuthentication = async (token) => {
@@ -166,6 +207,8 @@
                             token: token
                         })
                     }).then(res => res.json());
+
+                    return res;
                 }
 
                 const processPayment = async (token) => {
@@ -175,25 +218,36 @@
                         `${methodId}/${getGenericField('flowId')}/${getGenericField('scopeId')}`;
 
                     console.log(JSON.stringify(token));
-                    flexResponse.value = JSON.stringify(token);
                     try {
                         const res = await processFlowPaymentAsync(apiUrl,
                             methodId, (paymentData) => {
                                 paymentData.idempotencyKey = '1233';
                                 paymentData.value = {
-                                    currency: 'GBP',
-                                    amount: 1000
-                                },
-                                    paymentData.threeDSecure = {
-                                        ...browserInfo
-                                    };
+                                    currency: 'USD',
+                                    amount: 100000
+                                };
+                                paymentData.threeDSecure = {
+                                    ...browserInfo
+                                };
                                 paymentData.token = token;
+                                paymentData.stepUpReferenceId = window.stepUpReferenceId;
+                                paymentData.redirectUrl = window.location.protocol + '//' + '127.0.0.1:' + window.location.port + "/3ds.index";
 
                                 log('Payment Data', paymentData);
                             });
 
 
                         log('Payment Response', res);
+
+                        if (res.actionRequired) {
+                            createIframe('cardinal_collection_iframe',
+                                'collectionIframe',
+                                '400',
+                                '400',
+                                'collectionIframe',
+                                res.cybersourceAccessToken,
+                                res.actionUrl);
+                        }
                     } catch (error) {
                         log('Payment Error', error);
                     }
@@ -331,10 +385,24 @@
                                         errorsOutput.textContent = err.message;
                                 }
                             } else {
-                                const authenticationResult = await checkPayerAuthentication(token).then(res => res.json());
+                                if (token) {
+                                    window.currentPaymentToken = token;
+                                }
+
+                                const authenticationResult = await checkPayerAuthentication(token);
+
+                                console.log("Authentication Result:", JSON.stringify(authenticationResult, null, 2));
 
                                 if (authenticationResult.result && authenticationResult.result.isRequired) {
-                                    integerate3dsIframe(authenticationResult.result.deviceDataCollectionUrl, authenticationResult.result.accessToken);
+                                    setTimeout(() => window.addEventListener("message", deviceDataCollected), 1000)
+
+                                    createIframe('cardinal_collection_iframe',
+                                        'collectionIframe',
+                                        '400',
+                                        '400',
+                                        'collectionIframe',
+                                        authenticationResult.result.accessToken,
+                                        authenticationResult.result.url);
                                 } else {
                                     processPayment(token);
                                 }
