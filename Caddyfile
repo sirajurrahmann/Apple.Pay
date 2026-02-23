@@ -2,6 +2,10 @@
   auto_https off
 }
 
+https://localhost:14442 {
+    reverse_proxy localhost:14442
+}
+
 :3000 {
   log {
     output stdout

@@ -1,4 +1,5 @@
 // Common JavaScript for Payment Pages
+let AppEnv;
 
 // -------------------------------------------------------------------
 // Shared Data & Constants
@@ -168,7 +169,7 @@ function loadJS(FILE_URL, async = true, onLoadAction = () => { }, clientLibraryI
     scriptEle.addEventListener("error", (ev) => {
         console.log("Error on loading file", ev);
     });
-    
+
     if (clientLibraryIntegrity) {
         scriptEle.integrity = clientLibraryIntegrity;
         scriptEle.crossOrigin = "anonymous";
@@ -283,7 +284,7 @@ function renderGenericFields(containerId, defaults = {}, moreFields = []) {
         { id: 'flowId', label: 'flow Id', type: 'text', placeholder: 'Flow Id', value: defaults.flowId || '' },
         { id: 'scopeId', label: 'scope Id', type: 'text', placeholder: 'Scope Id', value: defaults.scopeId || '' },
         ...moreFields
-    
+
     ];
 
     let html = '';
@@ -297,8 +298,6 @@ function renderGenericFields(containerId, defaults = {}, moreFields = []) {
 
     container.innerHTML = html;
 }
-
-let AppEnv = null;
 
 loadEnv();
 

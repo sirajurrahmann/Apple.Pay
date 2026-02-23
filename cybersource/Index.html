@@ -178,7 +178,7 @@
                     form.submit();
                 };
 
-                const deviceDataCollected = () => {
+                const deviceDataCollected = (event) => {
                     if (event.origin.indexOf("cardinalcommerce.com") > -1) {
                         let data = JSON.parse(event.data);
 
@@ -214,24 +214,47 @@
                 const processPayment = async (token) => {
                     const apiPrefix = document.getElementById("apiPrefix").value;
                     const methodId = document.getElementById("methodId").value;
-                    const apiUrl = apiPrefix + "payments/" +
+                    // const apiUrl = apiPrefix + "payments/" +
+                    //     `${methodId}/${getGenericField('flowId')}/${getGenericField('scopeId')}`;
+
+                    const apiUrl = apiPrefix + "credentials/" +
                         `${methodId}/${getGenericField('flowId')}/${getGenericField('scopeId')}`;
 
                     console.log(JSON.stringify(token));
                     try {
+                        const populatePaymentFields = (paymentData) => {
+                            paymentData.idempotencyKey = '1233';
+                            paymentData.value = {
+                                currency: 'USD',
+                                amount: 100000
+                            };
+                            paymentData.threeDSecure = {
+                                ...browserInfo
+                            };
+                            paymentData.token = token;
+                            paymentData.stepUpReferenceId = window.stepUpReferenceId;
+                            paymentData.redirectUrl = window.location.protocol + '//' + '127.0.0.1:' + window.location.port + "/3ds.index";
+                        };
+
+                        const populateCredentialsFields = (paymentData) => {
+                            paymentData.setupPayment = {
+                                activeCheckOnly: true,
+                                value: {
+                                    currency: 'GBP',
+                                    amount: 10
+                                }
+                            };
+                          paymentData.threeDSecure = {
+                                ...browserInfo
+                            };
+                            paymentData.token = token;
+                            paymentData.stepUpReferenceId = window.stepUpReferenceId;
+                            paymentData.redirectUrl = window.location.protocol + '//' + '127.0.0.1:' + window.location.port + "/3ds.index";
+                        };
+
                         const res = await processFlowPaymentAsync(apiUrl,
                             methodId, (paymentData) => {
-                                paymentData.idempotencyKey = '1233';
-                                paymentData.value = {
-                                    currency: 'USD',
-                                    amount: 100000
-                                };
-                                paymentData.threeDSecure = {
-                                    ...browserInfo
-                                };
-                                paymentData.token = token;
-                                paymentData.stepUpReferenceId = window.stepUpReferenceId;
-                                paymentData.redirectUrl = window.location.protocol + '//' + '127.0.0.1:' + window.location.port + "/3ds.index";
+                                populateCredentialsFields(paymentData);
 
                                 log('Payment Data', paymentData);
                             });
@@ -239,14 +262,14 @@
 
                         log('Payment Response', res);
 
-                        if (res.actionRequired) {
-                            createIframe('cardinal_collection_iframe',
-                                'collectionIframe',
+                        if (res.result.requireAction) {
+                            createIframe('step-up-iframe',
+                                'step-up-iframe',
                                 '400',
                                 '400',
-                                'collectionIframe',
-                                res.cybersourceAccessToken,
-                                res.actionUrl);
+                                'step-up-iframe',
+                                res.result.cybersourceAccessToken,
+                                res.result.actionUrl);
                         }
                     } catch (error) {
                         log('Payment Error', error);
@@ -257,12 +280,11 @@
                 renderGenericFields('config-section', {
                     apiPrefix: getEnv('CYBERSOURCE_BASE_URL_ID') || 'http://localhost:14442/cybersource/v1.0/',
                     methodId: getEnv('CYBERSOURCE_METHOD_ID') || '2b3cc486-458f-4df5-98fb-6c6cfb4092f1',
-                    // methodId: 'a9f6f6e4-01a7-4fe1-bec7-cd2c6e705c88',
                     subscriptionId: '0000006e-0000-0000-0000-000000000000',
-                    // scopeId: '4c3a230a-72ad-4bdf-a602-38ad9ce48b1d',
-                    scopeId: '8a9bd9c0-fb0d-47fc-b346-a08a48c7806f',
-                    // flowId: 'bc7bb42a-0c89-4cdb-a71f-0ca2ac9e88fa'
-                    flowId: '63290511-2c91-40ab-9028-809e1f2b9962'
+                    // scopeId: '8a9bd9c0-fb0d-47fc-b346-a08a48c7806f', // payment scope id
+                    scopeId: 'ac87bfe9-d73b-47e2-a8ab-ae9b9c0fea71',
+                    // flowId: '63290511-2c91-40ab-9028-809e1f2b9962' // payment flow id
+                    flowId: '055069eb-31fd-49b1-8f00-c52938a1f269'
                 });
 
                 document.addEventListener("DOMContentLoaded", () => {
@@ -394,7 +416,8 @@
                                 console.log("Authentication Result:", JSON.stringify(authenticationResult, null, 2));
 
                                 if (authenticationResult.result && authenticationResult.result.isRequired) {
-                                    setTimeout(() => window.addEventListener("message", deviceDataCollected), 1000)
+                                    window.stepUpReferenceId = authenticationResult.result.referenceId;
+                                    window.addEventListener("message", deviceDataCollected);
 
                                     createIframe('cardinal_collection_iframe',
                                         'collectionIframe',
